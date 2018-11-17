@@ -11,6 +11,9 @@
 // cannot be remapped to alternate pins.  For Arduino Uno,
 // Duemilanove, etc., pin 11 = MOSI, pin 12 = MISO, pin 13 = SCK.
 
+// The FT6206 uses hardware I2C (SCL/SDA)
+Adafruit_FT6206 ctp = Adafruit_FT6206();
+
 #define TFT_DC 9
 #define TFT_CS 10
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
@@ -21,7 +24,7 @@ void setup(void) {
   Serial.begin(9600);
 
   tft.begin();
-  
+ 
   yield();
 
   Serial.print("Initializing SD card...");
@@ -43,6 +46,29 @@ void loop() {
         (tft.height() / 2) + (i * 160));
     }
   }*/
+  // Wait for a touch
+  if (! ctp.touched()) {
+    return;
+  }
+
+  // Retrieve a point  
+  TS_Point p = ctp.getPoint();
+  
+ /*
+  // Print out raw data from screen touch controller
+  Serial.print("X = "); Serial.print(p.x);
+  Serial.print("\tY = "); Serial.print(p.y);
+  Serial.print(" -> ");
+ */
+
+  // flip it around to match the screen.
+  p.x = map(p.x, 0, 240, 240, 0);
+  p.y = map(p.y, 0, 320, 320, 0);
+
+  // Print out the remapped (rotated) coordinates
+  Serial.print("("); Serial.print(p.x);
+  Serial.print(", "); Serial.print(p.y);
+  Serial.println(")");
   
 }
 
@@ -209,5 +235,5 @@ uint32_t read32(File &f) {
 void home_page(){
   tft.fillScreen(ILI9341_WHITE);
   tft.setRotation(3);
-  bmpDraw("Lab3View.bmp", 0, 0);
+  bmpDraw("ProgSetPointsTT.bmp", 0, 0);
 }
