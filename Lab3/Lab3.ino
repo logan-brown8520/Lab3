@@ -26,12 +26,12 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
 int view = 0;
 int mode = 0;
-int temper = 70;
-int temper2 = 70;
+int temper = 70;  //temperature in the house
+int temper2 = 70; //hold temperature
 bool wkED = false;
 bool wkendED = false;
-bool cooling = false;
-bool heating = false;
+bool cooling = false;  //AC on
+bool heating = false;  //heat on
 time_t t = now();
 
 void setup(void) {
@@ -133,6 +133,7 @@ void loop() {
   Serial.print(", "); Serial.print(p.y);
   Serial.println(")");
   
+  //view flow logic
   switch(view) {
     case 1:
     case 2:
