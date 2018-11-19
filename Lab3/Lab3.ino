@@ -1,9 +1,13 @@
+// Time - Version: Latest 
+#include <Time.h>
+#include <TimeLib.h>
 
 #include <Adafruit_FT6206.h>
 #include <Adafruit_GFX.h>    // Core graphics library
 #include "Adafruit_ILI9341.h" // Hardware-specific library
 #include <SPI.h>
 #include <SD.h>
+#include <Wire.h>
 #include <TouchScreen.h>
 
 // TFT display and SD card will share the hardware SPI interface.
@@ -20,11 +24,31 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
 #define SD_CS 4
 
+int view = 0;
+int mode = 0;
+int stat = 0; //status variable 0-off 1-heat 2-cool
+int temper = 70;  //temperature in the house
+int temper2 = 70; //hold temperature
+bool wkED = false;
+bool wkendED = false;
+bool cooling = false;  //AC on
+bool heating = false;  //heat on
+time_t t=now();
+//setTime(t);
+
+
 void setup(void) {
   Serial.begin(9600);
 
   tft.begin();
  
+  if (! ctp.begin(40)) {  // pass in 'sensitivity' coefficient
+    Serial.println("Couldn't start FT6206 touchscreen controller");
+    while (1);
+  }
+  
+  Serial.println("Capacitive touchscreen started");
+  
   yield();
 
   Serial.print("Initializing SD card...");
@@ -32,7 +56,9 @@ void setup(void) {
     Serial.println("failed!");
   }
   Serial.println("OK!");
+ 
   home_page();
+  //writeHoldTemp();
 
 }
 
@@ -46,13 +72,52 @@ void loop() {
         (tft.height() / 2) + (i * 160));
     }
   }*/
+  
   // Wait for a touch
-  if (! ctp.touched()) {
+  if ((! ctp.touched()) && (view>7) && (view<13)) {
+    time_t nt = now();
+    if(nt-t>9)
+      switch(mode){
+        case 1:
+          if(heating){
+            autoHeat();
+          } else if(cooling){
+            autoCool();
+          } else {
+            autoOff();
+          }
+          break;
+        case 2:
+          if(heating){
+            heatOn();
+          } else {
+            heatOff();
+          }
+          break;
+        case 3:
+          if(cooling){
+            coolOn();
+          } else {
+            coolOff();
+          }
+          break;
+        default:
+          home_page();
+          break;
+      } else {
+        return;
+      }
+  } else if (! ctp.touched()){
     return;
   }
-
-  // Retrieve a point  
+  
   TS_Point p = ctp.getPoint();
+  TS_Point p2 = ctp.getPoint();
+  // Retrieve a point  
+  /*while(ctp.touched()){
+    p = ctp.getPoint();
+    p2 = ctp.getPoint();
+  }*/
   
  /*
   // Print out raw data from screen touch controller
@@ -62,13 +127,122 @@ void loop() {
  */
 
   // flip it around to match the screen.
-  p.x = map(p.x, 0, 240, 240, 0);
-  p.y = map(p.y, 0, 320, 320, 0);
+  //p.x = map(p.x, 0, 240, 240, 0);
+  //p.y = map(p.y, 0, 320, 320, 0);
+  p.x = map(p2.y, 0, 320, 0, 320);
+  p.y = map(p2.x, 0, 240, 240, 0);
 
   // Print out the remapped (rotated) coordinates
   Serial.print("("); Serial.print(p.x);
   Serial.print(", "); Serial.print(p.y);
   Serial.println(")");
+  
+  //view flow logic
+  switch(view) {
+    case 1:
+    case 2:
+    case 3:
+      if((184<p.x) && (p.x<319) && (0<p.y) && (p.y<72)){
+        if(heating){
+          heatOn();
+        } else {
+          heatOff();
+        }
+      } else if((0<p.x) && (p.x<137) && (215<p.y) && (p.y<239)){
+        setDate();
+      } else if((138<p.x) && (p.x<251) && (215<p.y) && (p.y<239)){
+        if(!wkED && !wkendED){
+          progDD();
+        } else if(!wkED && wkendED){
+          progDE();
+        } else if(wkED && !wkendED){
+          progED();
+        } else if(wkED && wkendED){
+          progEE();
+        }
+      }
+      break;
+    case 4:
+    case 5:
+      if((184<p.x) && (p.x<319) && (0<p.y) && (p.y<72)){
+        if(cooling){
+          coolOn();
+        } else {
+          coolOff();
+        }
+      } else if((0<p.x) && (p.x<137) && (215<p.y) && (p.y<239)){
+        setDate();
+      } else if((138<p.x) && (p.x<251) && (215<p.y) && (p.y<239)){
+        if(!wkED && !wkendED){
+          progDD();
+        } else if(!wkED && wkendED){
+          progDE();
+        } else if(wkED && !wkendED){
+          progED();
+        } else if(wkED && wkendED){
+          progEE();
+        }
+      }
+      break;
+    case 6:
+    case 7:
+      if((184<p.x) && (p.x<319) && (0<p.y) && (p.y<72)){
+        home_page();
+      } else if((0<p.x) && (p.x<137) && (215<p.y) && (p.y<239)){
+        setDate();
+      } else if((138<p.x) && (p.x<251) && (215<p.y) && (p.y<239)){
+        if(!wkED && !wkendED){
+          progDD();
+        } else if(!wkED && wkendED){
+          progDE();
+        } else if(wkED && !wkendED){
+          progED();
+        } else if(wkED && wkendED){
+          progEE();
+        }
+      }
+      break;
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+    case 12:
+    case 13:
+      if((219<p.x && p.x<319) && (190<p.y && 
+    case 14:
+    default:
+      if((184<p.x) && (p.x<319) && (0<p.y) && (p.y<72)){ //this needs to be like this for some reason
+        if(heating){
+          autoHeat();
+        } else if(cooling){
+          autoCool();
+        } else {
+          autoOff();
+        }
+      } else if((0<p.x) && (p.x<137) && (215<p.y) && (p.y<239)){
+        setDate();
+      } else if((138<p.x) && (p.x<251) && (215<p.y) && (p.y<239)){
+        if(!wkED && !wkendED){
+          progDD();
+        } else if(!wkED && wkendED){
+          progDE();
+        } else if(wkED && !wkendED){
+          progED();
+        } else if(wkED && wkendED){
+          progEE();
+        }
+      }
+      else if((252<p.x && p.x<319) && (145<p.y && p.y<191)){ //inc set point
+        temper2++;
+        //redraw or reload page
+      }
+      else if((252<p.x && p.x<319) && (192<p.y && p.y<239)){ //dec set point
+        temper2--;
+        //redraw or reload page
+      }
+      
+      break;
+  }
   
 }
 
@@ -233,7 +407,164 @@ uint32_t read32(File &f) {
 }
 
 void home_page(){
-  tft.fillScreen(ILI9341_WHITE);
+  tft.fillScreen(ILI9341_BLACK);
+  //tft.fillScreen(ILI9341_WHITE);
   tft.setRotation(3);
-  bmpDraw("ProgSetPointsTT.bmp", 0, 0);
+  bmpDraw("MSOff.bmp", 0, 0);
+  writeTemp();
+  //writeHoldTemp();
+  writeTime();
+  view = 0;
+  mode = 0;
+}
+
+void autoOff(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("MSMA_SO.bmp", 0, 0);
+  writeTemp();
+  view = 1;
+  mode = 1;
+}
+
+void autoCool(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("MSMA_SA.bmp", 0, 0);
+  writeTemp();
+  view = 2;
+  mode = 1;
+}
+
+void autoHeat(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("MSMA_SM.bmp", 0, 0);
+  writeTemp();
+  view = 3;
+  mode = 1;
+}
+
+void heatOff(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("MSMH_SO.bmp", 0, 0);
+  writeTemp();
+  view = 4;
+  mode = 2;
+}
+
+void heatOn(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("MSMH_SM.bmp", 0, 0);
+  writeTemp();
+  view = 5;
+  mode = 2;
+}
+
+void coolOff(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("MSMC_SO.bmp", 0, 0);
+  writeTemp();
+  view = 6;
+  mode = 3;
+}
+
+void coolOn(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("MSMC_SA.bmp", 0, 0);
+  writeTemp();
+  view = 7;
+  mode = 3;
+}
+
+void progDD(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("PSPDD.bmp", 0, 0);
+  view = 8;
+  wkED = false;
+  wkendED = false;
+  t = now();
+}
+
+void progDE(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("PSPDE.bmp", 0, 0);
+  view = 9;
+  wkED = false;
+  wkendED = true;
+  t = now();
+}
+
+void progED(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("PSPED.bmp", 0, 0);
+  view = 10;
+  wkED = true;
+  wkendED = false;
+  t = now();
+}
+
+void progEE(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("PSPEE.bmp", 0, 0);
+  view = 11;
+  wkED = true;
+  wkendED = true;
+  t = now();
+}
+
+void progTT(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("PSPTT.bmp", 0, 0);
+  view = 12;
+  t = now();
+}
+
+void setDate(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("SetDate.bmp", 0, 0);
+  view = 13;
+}
+
+void set_time(){//name change due to preset method setTime
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("SetTime.bmp", 0, 0);
+  view = 14;
+}
+
+void writeTemp(){
+  char a[2];
+  String(temper).toCharArray(a,3);
+  tft.drawChar(30, 44, byte(a[0]), ILI9341_BLACK, ILI9341_WHITE, 7);
+  tft.drawChar(70, 44, byte(a[1]), ILI9341_BLACK, ILI9341_WHITE, 7);
+  tft.drawChar(110, 44, 79, ILI9341_BLACK, ILI9341_WHITE, 2);
+  tft.drawChar(130, 44, 70, ILI9341_BLACK, ILI9341_WHITE, 7);
+}
+
+void writeHoldTemp(){
+  char b[2];
+  String(temper2).toCharArray(b,3);
+  tft.drawChar(148, 160, byte(b[0]), ILI9341_BLACK, ILI9341_WHITE, 5);
+  tft.drawChar(178, 160, byte(b[1]), ILI9341_BLACK, ILI9341_WHITE, 5);
+  tft.drawChar(208, 160, 79, ILI9341_BLACK, ILI9341_WHITE, 1);
+  tft.drawChar(218, 160, 70, ILI9341_BLACK, ILI9341_WHITE, 5);
+}
+
+void writeTime(){ //I struggled. switching to view flow
+  //t= now();
+  Serial.println(weekday());
+  Serial.print(hour());
+  Serial.print(":");
+  Serial.println(minute());
 }
