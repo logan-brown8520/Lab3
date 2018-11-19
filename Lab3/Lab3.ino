@@ -26,12 +26,19 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
 int view = 0;
 int mode = 0;
-int temper = 70;  //temperature in the house
-int temper2 = 70; //hold temperature
+int temper = 70;
+int temper2 = 72;
+int myday = 19;
+int mymonth = 11;
+int myyear = 2018;
+int myhour = 2;
+int myminute = 0;
+bool morning = true;
 bool wkED = false;
 bool wkendED = false;
-bool cooling = false;  //AC on
-bool heating = false;  //heat on
+bool cooling = false;
+bool heating = false;
+bool hold = true;
 time_t t = now();
 
 void setup(void) {
@@ -53,6 +60,7 @@ void setup(void) {
     Serial.println("failed!");
   }
   Serial.println("OK!");
+  mySetTime();
   home_page();
   //writeHoldTemp();
 
@@ -70,7 +78,7 @@ void loop() {
   }*/
   
   // Wait for a touch
-  if ((! ctp.touched()) && (view>7) && (view<13)) {
+  if ((! ctp.touched()) && (view>7) && (view<14)) {
     time_t nt = now();
     if(nt-t>9)
       switch(mode){
@@ -133,7 +141,6 @@ void loop() {
   Serial.print(", "); Serial.print(p.y);
   Serial.println(")");
   
-  //view flow logic
   switch(view) {
     case 1:
     case 2:
@@ -156,6 +163,25 @@ void loop() {
         } else if(wkED && wkendED){
           progEE();
         }
+      } else if((252<p.x && p.x<319) && (145<p.y && p.y<191) && (temper2 < 80)){ //inc set point
+        temper2++;
+        tft.fillRect(139, 146, 111, 67, ILI9341_WHITE);
+        myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+        //redraw or reload page
+      } else if((252<p.x && p.x<319) && (192<p.y && p.y<239) && (temper2 > 60)){ //dec set point
+        temper2--;
+        tft.fillRect(139, 146, 111, 67, ILI9341_WHITE);
+        myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+        //redraw or reload page
+      } else if((252<p.x && p.x<319) && (73<p.y && p.y<144)){
+        if(hold){
+          tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+          hold=false;
+         } else {
+          tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+          hold = true;
+         }
+         delay(500);
       }
       break;
     case 4:
@@ -178,6 +204,25 @@ void loop() {
         } else if(wkED && wkendED){
           progEE();
         }
+      } else if((252<p.x && p.x<319) && (145<p.y && p.y<191) && (temper2 < 80)){ //inc set point
+        temper2++;
+        tft.fillRect(139, 146, 111, 67, ILI9341_WHITE);
+        myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+        //redraw or reload page
+      } else if((252<p.x && p.x<319) && (192<p.y && p.y<239) && (temper2 > 60)){ //dec set point
+        temper2--;
+        tft.fillRect(139, 146, 111, 67, ILI9341_WHITE);
+        myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+        //redraw or reload page
+      } else if((252<p.x && p.x<319) && (73<p.y && p.y<144)){
+        if(hold){
+          tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+          hold=false;
+         } else {
+          tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+          hold = true;
+         }
+         delay(500);
       }
       break;
     case 6:
@@ -196,6 +241,25 @@ void loop() {
         } else if(wkED && wkendED){
           progEE();
         }
+      } else if((252<p.x && p.x<319) && (145<p.y && p.y<191) && (temper2 < 80)){ //inc set point
+        temper2++;
+        tft.fillRect(139, 146, 111, 67, ILI9341_WHITE);
+        myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+        //redraw or reload page
+      } else if((252<p.x && p.x<319) && (192<p.y && p.y<239) && (temper2 > 60)){ //dec set point
+        temper2--;
+        tft.fillRect(139, 146, 111, 67, ILI9341_WHITE);
+        myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+        //redraw or reload page
+      } else if((252<p.x && p.x<319) && (73<p.y && p.y<144)){
+        if(hold){
+          tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+          hold=false;
+         } else {
+          tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+          hold = true;
+         }
+         delay(500);
       }
       break;
     case 8:
@@ -205,6 +269,7 @@ void loop() {
     case 12:
     case 13:
     case 14:
+    case 15:
     default:
       if((184<p.x) && (p.x<319) && (0<p.y) && (p.y<72)){
         if(heating){
@@ -226,6 +291,25 @@ void loop() {
         } else if(wkED && wkendED){
           progEE();
         }
+      } else if((252<p.x && p.x<319) && (145<p.y && p.y<191) && (temper2 < 80)){ //inc set point
+        temper2++;
+        tft.fillRect(139, 146, 111, 67, ILI9341_WHITE);
+        myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+        //redraw or reload page
+      } else if((252<p.x && p.x<319) && (192<p.y && p.y<239) && (temper2 > 60)){ //dec set point
+        temper2--;
+        tft.fillRect(139, 146, 111, 67, ILI9341_WHITE);
+        myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+        //redraw or reload page
+      } else if((252<p.x && p.x<319) && (73<p.y && p.y<144)){
+        if(hold){
+          tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+          hold=false;
+         } else {
+          tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+          hold = true;
+         }
+         delay(500);
       }
       break;
   }
@@ -397,8 +481,16 @@ void home_page(){
   //tft.fillScreen(ILI9341_WHITE);
   tft.setRotation(3);
   bmpDraw("MSOff.bmp", 0, 0);
-  writeTemp();
-  //writeHoldTemp();
+  myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false);
+  myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+  myWrite(hour(), 34, 57, 75, 0, 165, 4, 0, false, true, false);
+  myWrite(minute(), 90, 113, 0, 0, 165, 4, 0, false, false, false);
+  myWrite(weekday(), 5, 0, 0, 0, 165, 4, 0, false, false, true);
+  if(hold){
+    tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+  } else {
+    tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+  }
   view = 0;
   mode = 0;
 }
@@ -407,7 +499,16 @@ void autoOff(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("MSMA_SO.bmp", 0, 0);
-  writeTemp();
+  myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false);
+  myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+  myWrite(hour(), 34, 57, 75, 0, 165, 4, 0, false, true, false);
+  myWrite(minute(), 90, 113, 0, 0, 165, 4, 0, false, false, false);
+  myWrite(weekday(), 5, 0, 0, 0, 165, 4, 0, false, false, true);
+  if(hold){
+    tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+  } else {
+    tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+  }
   view = 1;
   mode = 1;
 }
@@ -416,7 +517,16 @@ void autoCool(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("MSMA_SA.bmp", 0, 0);
-  writeTemp();
+  myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false);
+  myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+  myWrite(hour(), 34, 57, 75, 0, 165, 4, 0, false, true, false);
+  myWrite(minute(), 90, 113, 0, 0, 165, 4, 0, false, false, false);
+  myWrite(weekday(), 5, 0, 0, 0, 165, 4, 0, false, false, true);
+  if(hold){
+    tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+  } else {
+    tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+  }
   view = 2;
   mode = 1;
 }
@@ -425,7 +535,16 @@ void autoHeat(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("MSMA_SM.bmp", 0, 0);
-  writeTemp();
+  myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false);
+  myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+  myWrite(hour(), 34, 57, 75, 0, 165, 4, 0, false, true, false);
+  myWrite(minute(), 90, 113, 0, 0, 165, 4, 0, false, false, false);
+  myWrite(weekday(), 5, 0, 0, 0, 165, 4, 0, false, false, true);
+  if(hold){
+    tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+  } else {
+    tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+  }
   view = 3;
   mode = 1;
 }
@@ -434,7 +553,16 @@ void heatOff(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("MSMH_SO.bmp", 0, 0);
-  writeTemp();
+  myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false);
+  myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+  myWrite(hour(), 34, 57, 75, 0, 165, 4, 0, false, true, false);
+  myWrite(minute(), 90, 113, 0, 0, 165, 4, 0, false, false, false);
+  myWrite(weekday(), 5, 0, 0, 0, 165, 4, 0, false, false, true);
+  if(hold){
+    tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+  } else {
+    tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+  }
   view = 4;
   mode = 2;
 }
@@ -443,7 +571,16 @@ void heatOn(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("MSMH_SM.bmp", 0, 0);
-  writeTemp();
+  myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false);
+  myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+  myWrite(hour(), 34, 57, 75, 0, 165, 4, 0, false, true, false);
+  myWrite(minute(), 90, 113, 0, 0, 165, 4, 0, false, false, false);
+  myWrite(weekday(), 5, 0, 0, 0, 165, 4, 0, false, false, true);
+  if(hold){
+    tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+  } else {
+    tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+  }
   view = 5;
   mode = 2;
 }
@@ -452,7 +589,16 @@ void coolOff(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("MSMC_SO.bmp", 0, 0);
-  writeTemp();
+  myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false);
+  myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+  myWrite(hour(), 34, 57, 75, 0, 165, 4, 0, false, true, false);
+  myWrite(minute(), 90, 113, 0, 0, 165, 4, 0, false, false, false);
+  myWrite(weekday(), 5, 0, 0, 0, 165, 4, 0, false, false, true);
+  if(hold){
+    tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+  } else {
+    tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+  }
   view = 6;
   mode = 3;
 }
@@ -461,7 +607,16 @@ void coolOn(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("MSMC_SA.bmp", 0, 0);
-  writeTemp();
+  myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false);
+  myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false);
+  myWrite(hour(), 34, 57, 75, 0, 165, 4, 0, false, true, false);
+  myWrite(minute(), 90, 113, 0, 0, 165, 4, 0, false, false, false);
+  myWrite(weekday(), 5, 0, 0, 0, 165, 4, 0, false, false, true);
+  if(hold){
+    tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
+  } else {
+    tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+  }
   view = 7;
   mode = 3;
 }
@@ -506,7 +661,7 @@ void progEE(){
   t = now();
 }
 
-void progTT(){
+void progWeekTT(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("PSPTT.bmp", 0, 0);
@@ -514,34 +669,98 @@ void progTT(){
   t = now();
 }
 
+void progEndTT(){
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setRotation(3);
+  bmpDraw("PSPTT.bmp", 0, 0);
+  view = 13;
+  t = now();
+}
+
 void setDate(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("SetDate.bmp", 0, 0);
-  view = 13;
+  view = 14;
 }
 
 void setTime(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("SetTime.bmp", 0, 0);
-  view = 14;
+  view = 15;
 }
 
-void writeTemp(){
+
+
+void myWrite(int value, int x1, int x2, int x3, int x4, int y, int size1, int size2, bool myTemp, bool hour, bool day){
+  if(!day){
+    char a[2];
+    if(hour && value==0){
+      value = 12;
+    }
+    String(value).toCharArray(a,3);
+    if(value<10){
+      a[1]=a[0];
+      a[0]=79;
+    }
+    tft.drawChar(x1, y, byte(a[0]), ILI9341_BLACK, ILI9341_WHITE, size1);
+    tft.drawChar(x2, y, byte(a[1]), ILI9341_BLACK, ILI9341_WHITE, size1);
+    if(myTemp){
+      tft.drawChar(x3, y, 79, ILI9341_BLACK, ILI9341_WHITE, size2);
+      tft.drawChar(x4, y, 70, ILI9341_BLACK, ILI9341_WHITE, size1);
+    }
+    if(hour){
+      tft.drawChar(x3, y, 58, ILI9341_BLACK, ILI9341_WHITE, size1);
+    }
+  } else {
+    switch(value) {
+      case 1:
+        tft.drawChar(x1, y, 83, ILI9341_BLACK, ILI9341_WHITE, size1);
+        break;
+      case 2:
+        tft.drawChar(x1, y, 77, ILI9341_BLACK, ILI9341_WHITE, size1);
+        break;
+      case 3:
+        tft.drawChar(x1, y, 84, ILI9341_BLACK, ILI9341_WHITE, size1);
+        break;
+      case 4:
+        tft.drawChar(x1, y, 87, ILI9341_BLACK, ILI9341_WHITE, size1);
+        break;
+      case 5:
+        tft.drawChar(x1, y, 82, ILI9341_BLACK, ILI9341_WHITE, size1);
+        break;
+      case 6:
+        tft.drawChar(x1, y, 70, ILI9341_BLACK, ILI9341_WHITE, size1);
+        break;
+      default:
+        tft.drawChar(x1, y, 65, ILI9341_BLACK, ILI9341_WHITE, size1);
+        break;
+    }
+  }
+}
+
+//THIS ONE WORKS
+/*void writeTemp(int temperature, int x1, int x2, int x3, int x4, int y, int size1, int size2){
   char a[2];
-  String(temper).toCharArray(a,3);
-  tft.drawChar(30, 44, byte(a[0]), ILI9341_BLACK, ILI9341_WHITE, 7);
-  tft.drawChar(70, 44, byte(a[1]), ILI9341_BLACK, ILI9341_WHITE, 7);
-  tft.drawChar(110, 44, 79, ILI9341_BLACK, ILI9341_WHITE, 2);
-  tft.drawChar(130, 44, 70, ILI9341_BLACK, ILI9341_WHITE, 7);
+  String(temperature).toCharArray(a,3);
+  tft.drawChar(x1, y, byte(a[0]), ILI9341_BLACK, ILI9341_WHITE, size1);
+  tft.drawChar(x2, y, byte(a[1]), ILI9341_BLACK, ILI9341_WHITE, size1);
+  tft.drawChar(x3, y, 79, ILI9341_BLACK, ILI9341_WHITE, size2);
+  tft.drawChar(x4, y, 70, ILI9341_BLACK, ILI9341_WHITE, size1);
+}*/
+
+void mySetTime(){
+  if(!morning){
+    myhour = myhour + 12;
+  }
+  setTime(myhour, myminute, 0, myday, mymonth, myyear);
+  hourFormat12();
 }
 
-/*void writeHoldTemp(){
+/*void writeTime(int value, int x1, int x2, int y, int size){ //I struggled. switching to view flow
   char b[2];
-  String(temper2).toCharArray(b,3);
-  tft.drawChar(148, 160, byte(b[0]), ILI9341_BLACK, ILI9341_WHITE, 5);
-  tft.drawChar(178, 160, byte(b[1]), ILI9341_BLACK, ILI9341_WHITE, 5);
-  tft.drawChar(208, 160, 79, ILI9341_BLACK, ILI9341_WHITE, 1);
-  tft.drawChar(218, 160, 70, ILI9341_BLACK, ILI9341_WHITE, 5);
+  String(value).toCharArray(b,3);
+  tft.drawChar(x1, y, byte(b[0]), ILI9341_BLACK, ILI9341_WHITE, size);
+  //tft.drawChar(x2, y, byte(b[1]), ILI9341_BLACK, ILI9341_WHITE, size);
 }*/
