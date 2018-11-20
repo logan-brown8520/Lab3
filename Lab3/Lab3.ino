@@ -28,6 +28,16 @@ int view = 0;         //keeps track of which of the views we are in, 0-15
 int mode = 0;         //keeps track of whether we are in off(0), auto(1), heating(2), or cooling(3)
 int temper = 70;      //the temperature of the house
 int temper2 = 72;     //the hold temperature
+
+int wkT[]={70, 70, 70, 70};   //temperatures for the week
+int weT[]={70, 70, 70, 70};   //temperatures for the weekend
+int wkH[]={12, 6, 12, 6};     //hours for the week
+int weH[]={12, 6, 12, 6};     //hours for the weekend
+int wkM[]={0, 0, 0, 0};       //minutes for the week
+int weM[]={0, 0, 0, 0};       //minutes for the weekend
+bool wkA[] = {true, true, false, false};  //AM/PM for the week, AM is true
+bool weA[] = {true, true, false, false};  //AM/PM for the weekend, AM is true
+
 int myday = 1;       //the day of the month we are setting the clock to, 1-31
 int mymonth = 1;     //the month we are setting the clock to, 1-12
 int myyear = 2000;    //the year we are setting the clock to
@@ -81,6 +91,9 @@ void loop() {
   if(view<8){
     time_t nt = now();
     if(nt-update>9){
+      if(systemActive(temper2)){
+        modeCheck();
+      }
       mainViewWriting();
     }
   }
@@ -88,35 +101,9 @@ void loop() {
   // Wait for a touch or timeout in certain views after 10 seconds
   if ((! ctp.touched()) && (view>7) && (view<14)) {
     time_t nt = now();
-    if(nt-t>9)
-      switch(mode){
-        case 1:
-          if(heating){
-            autoHeat();
-          } else if(cooling){
-            autoCool();
-          } else {
-            autoOff();
-          }
-          break;
-        case 2:
-          if(heating){
-            heatOn();
-          } else {
-            heatOff();
-          }
-          break;
-        case 3:
-          if(cooling){
-            coolOn();
-          } else {
-            coolOff();
-          }
-          break;
-        default:
-          home_page();
-          break;
-      } else {
+    if(nt-t>9){
+      modeCheck();
+    } else {
         return;
       }
   } else if (! ctp.touched()){    //Wait for a touch
@@ -176,7 +163,32 @@ void loop() {
     case 9:
     case 10:
     case 11:
+      if((p.x<229) && (p.y<120)){
+        progWeekTT();
+      } else if((p.x<229) && (121<p.y)){
+        progEndTT();
+      } else if(230<p.x){
+        if(p.y<121){
+          wkED = !wkED;
+        } else {
+          wkendED = !wkendED;
+        }
+        if(!wkED && !wkendED){
+          progDD();
+        } else if(!wkED){
+          progDE();
+        } else if(!wkendED){
+          progED();
+        } else {
+          progEE();
+        }
+      }
+      break;
     case 12:
+        //myWrite(myhour, 50, 80, 110, 0, 80, 5, 0, false, true, false, false);
+        //myWrite(myminute, 135, 165, 0, 0, 80, 5, 0, false, false, false, false);
+        //myWrite(0, 210, 240, 0, 0, 80, 5, 0, false, true, true, false);
+      break;
     case 13:
     case 14:
       if((60<p.x && p.x<99) && (14<p.y && p.y<39) && mymonth<12){
@@ -213,40 +225,13 @@ void loop() {
         delay(250);
       } else if((219<p.x && p.x<319) && (200<p.y && p.y<239)){
         mySetTime();
-        switch(mode){
-          case 1:
-            if(heating){
-              autoHeat();
-            } else if(cooling){
-              autoCool();
-            } else {
-              autoOff();
-            }
-            break;
-          case 2:
-            if(heating){
-              heatOn();
-            } else {
-              heatOff();
-            }
-            break;
-          case 3:
-            if(cooling){
-              coolOn();
-            } else {
-              coolOff();
-            }
-            break;
-          default:
-            home_page();
-            break;
-        }
+        modeCheck();
       }
       if((60<p.x && p.x<259) && (14<p.y && p.y<175)){
         tft.fillRect(0, 50, 320, 80, ILI9341_WHITE);
         myWrite(myhour, 50, 80, 110, 0, 80, 5, 0, false, true, false, false);
         myWrite(myminute, 135, 165, 0, 0, 80, 5, 0, false, false, false, false);
-        myWrite(0, 210, 240, 0, 0, 80, 5, 0, false, true, true, false);
+        myWrite(0, 210, 240, 0, 0, 80, 5, 0, morning, true, true, false);
       }
       break;
     default:
@@ -616,6 +601,12 @@ void progWeekTT(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("PSPTT.bmp", 0, 0);
+  for(int i=0; i<4; i++){
+    myWrite(wkT[i], 210, 230, 250, 260, (20+60*i), 3, 1, true, false, false, false);
+    myWrite(wkH[i], 32, 44, 54, 0, (20+60*i), 2, 0, false, true, false, false);
+    myWrite(wkM[i], 62, 74, 0, 0, (20+60*i), 2, 0, false, false, false, false);
+    myWrite(wkA[i], 85, 98, 0, 0, (20+60*i), 2, 0, wkA[i], true, true, false);
+  }
   view = 12;
   t = now();
 }
@@ -625,6 +616,12 @@ void progEndTT(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("PSPTT.bmp", 0, 0);
+  for(int i=0; i<4; i++){
+    myWrite(weT[i], 210, 230, 250, 260, (20+60*i), 3, 1, true, false, false, false);
+    myWrite(weH[i], 32, 44, 54, 0, (20+60*i), 2, 0, false, true, false, false);
+    myWrite(weM[i], 62, 74, 0, 0, (20+60*i), 2, 0, false, false, false, false);
+    myWrite(weA[i], 85, 98, 0, 0, (20+60*i), 2, 0, weA[i], true, true, false);
+  }
   view = 13;
   t = now();
 }
@@ -645,14 +642,14 @@ void setTime(){
   bmpDraw("SetTime.bmp", 0, 0);
   myWrite(myhour, 50, 80, 0, 0, 80, 5, 0, false, false, false, false);
   myWrite(myminute, 135, 165, 0, 0, 80, 5, 0, false, false, false, false);
-  myWrite(0, 210, 240, 0, 0, 80, 5, 0, false, true, true, false);
+  myWrite(0, 210, 240, 0, 0, 80, 5, 0, morning, true, true, false);
   view = 15;
 }
 
 //function that writes most characters on the screen
 void myWrite(int value, int x1, int x2, int x3, int x4, int y, int size1, int size2, bool myTemp, bool hour, bool day, bool year){
   if(hour && day){
-    if(morning){
+    if(myTemp){
       tft.drawChar(x1, y, 65, ILI9341_BLACK, ILI9341_WHITE, size1);
     } else {
       tft.drawChar(x1, y, 80, ILI9341_BLACK, ILI9341_WHITE, size1);
@@ -808,9 +805,53 @@ void mySetTime(){
   setTime(myhour, myminute, 0, myday, mymonth, myyear);
 }
 
-/*void writeTime(int value, int x1, int x2, int y, int size){ //I struggled. switching to view flow
-  char b[2];
-  String(value).toCharArray(b,3);
-  tft.drawChar(x1, y, byte(b[0]), ILI9341_BLACK, ILI9341_WHITE, size);
-  //tft.drawChar(x2, y, byte(b[1]), ILI9341_BLACK, ILI9341_WHITE, size);
-}*/
+bool systemActive(int temperature){
+  bool x = heating;
+  bool y = cooling;
+  if(temperature-temper>1){
+    heating = true;
+    cooling = false;
+  } else if(temper-temperature>1){
+    cooling = true;
+    heating = false;
+  } else if(temper - temperature == 0){
+    cooling = false;
+    heating = false;
+  }
+  if((((x!=heating) && (mode!=3)) || ((y!=cooling) && (mode!=2))) && (mode!=0)){
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void modeCheck(){
+  switch(mode){
+    case 1:
+      if(heating){
+        autoHeat();
+      } else if(cooling){
+        autoCool();
+      } else {
+        autoOff();
+      }
+      break;
+    case 2:
+      if(heating){
+        heatOn();
+      } else {
+        heatOff();
+      }
+      break;
+    case 3:
+      if(cooling){
+        coolOn();
+      } else {
+        coolOff();
+      }
+      break;
+    default:
+      home_page();
+      break;
+  }
+}
