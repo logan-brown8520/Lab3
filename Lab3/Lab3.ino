@@ -29,14 +29,10 @@ int mode = 0;         //keeps track of whether we are in off(0), auto(1), heatin
 int temper = 70;      //the temperature of the house
 int temper2 = 72;     //the hold temperature
 
-int wkT[]={70, 70, 70, 70};   //temperatures for the week
-int weT[]={70, 70, 70, 70};   //temperatures for the weekend
-int wkH[]={12, 6, 12, 6};     //hours for the week
-int weH[]={12, 6, 12, 6};     //hours for the weekend
-int wkM[]={0, 0, 0, 0};       //minutes for the week
-int weM[]={0, 0, 0, 0};       //minutes for the weekend
-bool wkA[] = {true, true, false, false};  //AM/PM for the week, AM is true
-bool weA[] = {true, true, false, false};  //AM/PM for the weekend, AM is true
+int wkT[]={70, 70, 70, 70, 70, 70, 70, 70};   //temperatures for the week(0-3) and weekend(4-7)
+int wkH[]={12, 6, 12, 6, 12, 6, 12, 6};     //hours for the week(0-3) and weekend(4-7)
+int wkM[]={0, 0, 0, 0, 0, 0, 0, 0};       //minutes for the week(0-3) and weekend(4-7)
+bool wkA[] = {true, true, false, false, true, true, false, false};  //AM/PM for the week(0-3) and weekend(4-7), AM is true
 
 int myday = 1;       //the day of the month we are setting the clock to, 1-31
 int mymonth = 1;     //the month we are setting the clock to, 1-12
@@ -78,15 +74,6 @@ void setup(void) {
 }
 
 void loop() {
-  /*for(uint8_t r=0; r<4; r++) {
-    tft.setRotation(r);
-    tft.fillScreen(ILI9341_BLUE);
-    for(int8_t i=-2; i<1; i++) {
-      bmpDraw("/purple.bmp",
-        (tft.width()  / 2) + (i * 120),
-        (tft.height() / 2) + (i * 160));
-    }
-  }*/
   
   if(view<8){
     time_t nt = now();
@@ -185,11 +172,93 @@ void loop() {
       }
       break;
     case 12:
-        //myWrite(myhour, 50, 80, 110, 0, 80, 5, 0, false, true, false, false);
-        //myWrite(myminute, 135, 165, 0, 0, 80, 5, 0, false, false, false, false);
-        //myWrite(0, 210, 240, 0, 0, 80, 5, 0, false, true, true, false);
+      if(p.x<29){
+        if(p.y<59){
+          wkTimeD(0);
+        } else if(p.y<119){
+          wkTimeD(1);
+        } else if(p.y<179){
+          wkTimeD(2);
+        } else {
+          wkTimeD(3);
+        }
+      } else if(129<p.x && p.x<159){
+        if(p.y<59){
+          wkTimeU(0);
+        } else if(p.y<119){
+          wkTimeU(1);
+        } else if(p.y<179){
+          wkTimeU(2);
+        } else {
+          wkTimeU(3);
+        }
+      } else if(160<p.x && p.x<189){
+        if(p.y<59){
+          wkTempD(0);
+        } else if(p.y<119){
+          wkTempD(1);
+        } else if(p.y<179){
+          wkTempD(2);
+        } else {
+          wkTempD(3);
+        }
+      } else if(290<p.x){
+        if(p.y<59){
+          wkTempU(0);
+        } else if(p.y<119){
+          wkTempU(1);
+        } else if(p.y<179){
+          wkTempU(2);
+        } else {
+          wkTempU(3);
+        }
+      }
+      delay(300);
       break;
     case 13:
+      if(p.x<29){
+        if(p.y<59){
+          wkTimeD(4);
+        } else if(p.y<119){
+          wkTimeD(5);
+        } else if(p.y<179){
+          wkTimeD(6);
+        } else {
+          wkTimeD(7);
+        }
+      } else if(129<p.x && p.x<159){
+        if(p.y<59){
+          wkTimeU(4);
+        } else if(p.y<119){
+          wkTimeU(5);
+        } else if(p.y<179){
+          wkTimeU(6);
+        } else {
+          wkTimeU(7);
+        }
+      } else if(160<p.x && p.x<189){
+        if(p.y<59){
+          wkTempD(4);
+        } else if(p.y<119){
+          wkTempD(5);
+        } else if(p.y<179){
+          wkTempD(6);
+        } else {
+          wkTempD(7);
+        }
+      } else if(290<p.x){
+        if(p.y<59){
+          wkTempU(4);
+        } else if(p.y<119){
+          wkTempU(5);
+        } else if(p.y<179){
+          wkTempU(6);
+        } else {
+          wkTempU(7);
+        }
+      }
+      delay(300);
+      break;
     case 14:
       if((60<p.x && p.x<99) && (14<p.y && p.y<39) && mymonth<12){
         mymonth++;
@@ -616,11 +685,11 @@ void progEndTT(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("PSPTT.bmp", 0, 0);
-  for(int i=0; i<4; i++){
-    myWrite(weT[i], 210, 230, 250, 260, (20+60*i), 3, 1, true, false, false, false);
-    myWrite(weH[i], 32, 44, 54, 0, (20+60*i), 2, 0, false, true, false, false);
-    myWrite(weM[i], 62, 74, 0, 0, (20+60*i), 2, 0, false, false, false, false);
-    myWrite(weA[i], 85, 98, 0, 0, (20+60*i), 2, 0, weA[i], true, true, false);
+  for(int i=4; i<8; i++){
+    myWrite(wkT[i], 210, 230, 250, 260, (20+60*(i%4)), 3, 1, true, false, false, false);
+    myWrite(wkH[i], 32, 44, 54, 0, (20+60*(i%4)), 2, 0, false, true, false, false);
+    myWrite(wkM[i], 62, 74, 0, 0, (20+60*(i%4)), 2, 0, false, false, false, false);
+    myWrite(wkA[i], 85, 98, 0, 0, (20+60*(i%4)), 2, 0, wkA[i], true, true, false);
   }
   view = 13;
   t = now();
@@ -854,4 +923,58 @@ void modeCheck(){
       home_page();
       break;
   }
+}
+
+void wkTimeD(int i){
+  if(wkM[i]>0){
+    wkM[i] = wkM[i]-5;
+  } else {
+    if(wkH[i]>0){
+      wkH[i]=wkH[i]-1;
+      wkM[i]=55;
+    } else {
+      wkA[i] = !wkA[i];
+      wkH[i] = 12;
+      wkM[i] = 55;
+    }
+  }
+  myWrite(wkH[i], 32, 44, 54, 0, (20+60*(i%4)), 2, 0, false, true, false, false);
+  myWrite(wkM[i], 62, 74, 0, 0, (20+60*(i%4)), 2, 0, false, false, false, false);
+  myWrite(wkA[i], 85, 98, 0, 0, (20+60*(i%4)), 2, 0, wkA[i], true, true, false);
+  t = now();
+}
+
+void wkTimeU(int i){
+  if(wkM[i]<55){
+    wkM[i] = wkM[i]+5;
+  } else {
+    if(wkH[i]<11){
+      wkH[i]=wkH[i]+1;
+      wkM[i]=0;
+    } else {
+      wkA[i] = !wkA[i];
+      wkH[i] = 0;
+      wkM[i] = 0;
+    }
+  }
+  myWrite(wkH[i], 32, 44, 54, 0, (20+60*(i%4)), 2, 0, false, true, false, false);
+  myWrite(wkM[i], 62, 74, 0, 0, (20+60*(i%4)), 2, 0, false, false, false, false);
+  myWrite(wkA[i], 85, 98, 0, 0, (20+60*(i%4)), 2, 0, wkA[i], true, true, false);
+  t = now();
+}
+
+void wkTempD(int i){
+  if(wkT[i]>60){
+    wkT[i] = wkT[i]-1;
+  }
+  myWrite(wkT[i], 210, 230, 250, 260, (20+60*(i%4)), 3, 1, true, false, false, false);
+  t = now();
+}
+
+void wkTempU(int i){
+  if(wkT[i]<80){
+    wkT[i] = wkT[i]+1;
+  } 
+  myWrite(wkT[i], 210, 230, 250, 260, (20+60*(i%4)), 3, 1, true, false, false, false);
+  t = now();
 }
