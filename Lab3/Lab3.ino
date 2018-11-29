@@ -30,18 +30,20 @@ int temper = 70;      //the temperature of the house
 int temper2 = 72;     //the hold temperature
 
 int wkT[]={70, 70, 70, 70, 70, 70, 70, 70};   //temperatures for the week(0-3) and weekend(4-7)
-int wkH[]={12, 6, 12, 6, 12, 6, 12, 6};     //hours for the week(0-3) and weekend(4-7)
+int wkH[]={5, 11, 5, 11, 5, 11, 5, 11};     //hours for the week(0-3) and weekend(4-7)
 int wkM[]={0, 0, 0, 0, 0, 0, 0, 0};       //minutes for the week(0-3) and weekend(4-7)
 bool wkA[] = {true, true, false, false, true, true, false, false};  //AM/PM for the week(0-3) and weekend(4-7), AM is true
 
 int myday = 1;       //the day of the month we are setting the clock to, 1-31
 int mymonth = 1;     //the month we are setting the clock to, 1-12
-int myyear = 2000;    //the year we are setting the clock to
+int myyear = 2018;    //the year we are setting the clock to
 int myhour = 12;       //the hour we are setting the clock to, 1-12
 int myminute = 0;     //minute we are setting the clock to, 0-59
 bool morning = true;  //AM when true, PM when false
 bool wkED = false;    //enables programmed set points during the week, disabled when false
+bool wkVer = false;   //when true, allows enabling of programmed set points for week
 bool wkendED = false; //enables programmed set points during the weekend, disabled when false
+bool wkendVer = false;//when true, allows enabling of pragrammed set points for weekend
 bool cooling = false; //tracks if the AC is on, off when false
 bool heating = false; //tracks if the heater is on, off when false
 bool hold = true;     //tracks if we are overriding the programmed set points, overriding when true
@@ -155,18 +157,18 @@ void loop() {
       } else if((p.x<229) && (121<p.y)){
         progEndTT();
       } else if(230<p.x){
-        if(p.y<121){
+        if((p.y<121) && wkVer){
           wkED = !wkED;
-        } else {
+        } else if(wkendVer){
           wkendED = !wkendED;
         }
         if(!wkED && !wkendED){
           progDD();
-        } else if(!wkED){
+        } else if(!wkED && wkendVer){
           progDE();
-        } else if(!wkendED){
+        } else if(!wkendED && wkVer){
           progED();
-        } else {
+        } else if(wkVer && wkendVer){
           progEE();
         }
       }
@@ -353,6 +355,9 @@ void loop() {
         if(hold){
           tft.fillRect(253, 74, 67, 70, ILI9341_RED);
           hold=false;
+          //if((1<weekday()) && (weekday()<7) && wkED){
+          //  
+          //}
          } else {
           tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
           hold = true;
@@ -678,6 +683,7 @@ void progWeekTT(){
   }
   view = 12;
   t = now();
+  wkVer = true;
 }
 
 //draw the page where we actually program the set points for the weekend
@@ -693,6 +699,7 @@ void progEndTT(){
   }
   view = 13;
   t = now();
+  wkendVer = true;
 }
 
 //draw the page where we set the date
@@ -934,7 +941,7 @@ void wkTimeD(int i){
       wkM[i]=55;
     } else {
       wkA[i] = !wkA[i];
-      wkH[i] = 12;
+      wkH[i] = 11;
       wkM[i] = 55;
     }
   }
