@@ -355,9 +355,50 @@ void loop() {
         if(hold){
           tft.fillRect(253, 74, 67, 70, ILI9341_RED);
           hold=false;
-          //if((1<weekday()) && (weekday()<7) && wkED){
-          //  
-          //}
+          if((1<weekday()) && (weekday()<7) && wkED){
+            int i = 0;
+            bool get = true;
+            while(get){
+              int hour1 = wkH[i];
+              if(!wkA[i]){
+                hour1 += 12;
+              }
+              if((weekday() == 2) && (i == 0) && (hour() < hour1) && (minute() < wkM[0])){
+                temper2 = wkT[7];
+                get = false;
+              } else if((hour() < hour1) && (minute() < wkM[i])){
+                temper2 = wkT[i-1];
+                get = false;
+              } else if(i == 3){
+                get = false;
+              } else {
+                i++;
+              }
+            }
+          }
+          if(((weekday() == 1) || (weekday() == 7)) && wkendED){
+            int i = 4;
+            bool get = true;
+            while(get){
+              int hour1 = wkH[i];
+              if(!wkA[i]){
+                hour1 += 12;
+              }
+              if((weekday() == 7) && (i == 4) && (hour() < hour1) && (minute() < wkM[4])){
+                temper2 = wkT[3];
+                get = false;
+              } else if((hour() < hour1) && (minute() < wkM[i])){
+                temper2 = wkT[i-1];
+                get = false;
+              } else if(i == 7){
+                get = false;
+              } else {
+                i++;
+              }
+            }
+          }
+          tft.fillRect(139, 146, 111, 67, ILI9341_WHITE);
+          myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false, false);
          } else {
           tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
           hold = true;
@@ -614,7 +655,6 @@ void coolOn(){
 //more code condensing
 void mainViewWriting(){
   myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false, false);
-  myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false, false);
   myWrite(hourFormat12(), 34, 57, 75, 0, 165, 4, 0, false, true, false, false);
   myWrite(minute(), 90, 113, 0, 0, 165, 4, 0, false, false, false, false);
   myWrite(weekday(), 5, 0, 0, 0, 165, 4, 0, false, false, true, false);
@@ -622,7 +662,50 @@ void mainViewWriting(){
     tft.fillRect(253, 74, 67, 70, ILI9341_GREEN);
   } else {
     tft.fillRect(253, 74, 67, 70, ILI9341_RED);
+    if((1<weekday()) && (weekday()<7) && wkED){
+      int i = 0;
+      bool get = true;
+      while(get){
+        int hour1 = wkH[i];
+        if(!wkA[i]){
+          hour1 += 12;
+        }
+        if((weekday() == 2) && (i == 0) && (hour() < hour1) && (minute() < wkM[0])){
+          temper2 = wkT[7];
+          get = false;
+        } else if((hour() < hour1) && (minute() < wkM[i])){
+          temper2 = wkT[i-1];
+          get = false;
+        } else if(i == 3){
+          get = false;
+        } else {
+          i++;
+        }
+      }
+    }
+    if(((weekday() == 1) || (weekday() == 7)) && wkendED){
+      int i = 4;
+      bool get = true;
+      while(get){
+        int hour1 = wkH[i];
+        if(!wkA[i]){
+          hour1 += 12;
+        }
+        if((weekday() == 7) && (i == 4) && (hour() < hour1) && (minute() < wkM[4])){
+          temper2 = wkT[3];
+          get = false;
+        } else if((hour() < hour1) && (minute() < wkM[i])){
+          temper2 = wkT[i-1];
+          get = false;
+        } else if(i == 7){
+          get = false;
+        } else {
+          i++;
+        }
+      }
+    }
   }
+  myWrite(temper2, 148, 178, 208, 218, 160, 5, 1, true, false, false, false);
   update = now();
 }
 
