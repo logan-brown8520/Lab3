@@ -11,8 +11,8 @@
 #include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
 
-//SoftwareSerial mySerial(8, 7); **NEED TO CHANGE PORTS
-//Adafruit_GPS GPS(&mySerial);
+SoftwareSerial mySerial(8, 7);
+Adafruit_GPS GPS(&mySerial);
 
 
 // TFT display and SD card will share the hardware SPI interface.
@@ -31,9 +31,8 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
 int view = 0;         //keeps track of which of the views we are in, 0-15
 int mode = 0;         //keeps track of whether we are in off(0), auto(1), heating(2), or cooling(3)
-//HOW TO ON NEGATIVE AND 100+??
 
-int temper = 100;      //the temperature of the house
+int temper = 70;      //the temperature of the house
 int temper2 = 72;     //the hold temperature
 
 //**THESE INITIAL VALUES ARE ONLY USED FOR DEMO PURPOSES. AFTER FIRST WRITE TO EEPROM, FURTHER EXAMPLES WILL READ FROM EEPROM ON STARTUP
@@ -57,7 +56,7 @@ bool heating = false; //tracks if the heater is on, off when false
 bool hold = true;     //tracks if we are overriding the programmed set points, overriding when true
 time_t t = now();
 time_t update = now();
-int outputpin = 1; //???
+int outputpin = A1; //???
 //GPS variables for Justin
 int yr;
 int mo = 0;
@@ -119,6 +118,22 @@ void setup(void) {
     wkT[i] = EEPROM.read(index+3);
     index+=4;
   }
+
+  int rawvoltage= analogRead(outputpin);
+  float millivolts= (rawvoltage/1024.0) * 5000;
+  
+  float fahrenheit= millivolts/10;
+  //Serial.print(fahrenheit);
+  //Serial.println(" degrees Fahrenheit, ");
+  
+  float celsius= (fahrenheit - 32) * (5.0/9.0);
+  
+  //Serial.print (celsius);
+  //Serial.println(" degrees Celsius");
+
+  temper = fahrenheit;
+  //Serial.println(temper);
+  delay(1000);
   
   tft.begin();
  
@@ -145,18 +160,33 @@ void setup(void) {
 void loop() {
 
   //for GPS reading (**probably needs moved)
-  //while(mo == 0 || ho == 0)
-      //getTime(&yr, &mo, &da, &ho, &mi, &se);
+  /*while(mo == 0 || ho == 0)
+      getTime(&yr, &mo, &da, &ho, &mi, &se);
 
-  /*Serial.print(GPS.hour, DEC); Serial.print(':');
+  Serial.print(GPS.hour, DEC); Serial.print(':');
   Serial.print(GPS.minute, DEC); Serial.print(':');
   Serial.print(GPS.seconds, DEC); Serial.print('\n');
   Serial.print(GPS.day, DEC); Serial.print('/');
   Serial.print(GPS.month, DEC); Serial.print("/20");
   Serial.println(GPS.year, DEC);*/
 
-  //get current temp at start of each loop (delay may be needed)
-  //temper = getTemp(); TEMP SENSOR ISNT WORKING ATM
+
+  //testing in main
+  int rawvoltage= analogRead(outputpin);
+  float millivolts= (rawvoltage/1024.0) * 5000;
+  
+  float fahrenheit= millivolts/10;
+  //Serial.print(fahrenheit);
+  //Serial.println(" degrees Fahrenheit, ");
+  
+  float celsius= (fahrenheit - 32) * (5.0/9.0);
+  
+  //Serial.print (celsius);
+  //Serial.println(" degrees Celsius");
+
+  temper = fahrenheit;
+  //Serial.println(temper);
+  delay(1000);
   
   if(view<8){
     time_t nt = now();
@@ -494,8 +524,6 @@ void loop() {
     default:
       break;
   }
-  //universal delay for my sanity
-  delay(1000);
 }
 
 // This function opens a Windows Bitmap (BMP) file and
@@ -1168,8 +1196,8 @@ void wkTempU(int i){
 }
 
 float getTemp(){
-  int rawvoltage= analogRead(A1);
-  float millivolts= (rawvoltage/1024) * 5000;
+  int rawvoltage= analogRead(outputpin);
+  float millivolts= (rawvoltage/1024.0) * 5000;
   float fahrenheit= millivolts/10;
   Serial.print(fahrenheit);
   Serial.println(" degrees Fahrenheit, ");
@@ -1226,4 +1254,12 @@ void writeEEPROM(){
     EEPROM.write(index, wkT[i]);
     index++;
   }
+}
+
+void writeTempEEPROM(){
+  
+}
+
+void readTempEEPROM(){
+  
 }
