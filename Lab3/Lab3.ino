@@ -46,8 +46,9 @@ int myday;       //the day of the month we are setting the clock to, 1-31
 int mymonth = 0;     //the month we are setting the clock to, 1-12
 int myyear;    //the year we are setting the clock to
 int myhour = 0;       //the hour we are setting the clock to, 1-12
-int myminute; //minute we are setting the clock to, 0-59
-int outputpin = A1;   //set Analog pin
+int myminute;     //minute we are setting the clock to, 0-59
+
+int outputpin = A1; //set Analog pin
 // Time variable offsets
 //** SET ONE TIME WITH EEPROM
 int offDay = 0;
@@ -55,6 +56,7 @@ int offMonth = 0;
 int offYear = 0;
 int offHour = 0;
 int offMin = 0;
+
 bool morning = true;  //AM when true, PM when false
 bool wkED = false;    //enables programmed set points during the week, disabled when false
 bool wkVer = false;   //when true, allows enabling of programmed set points for week
@@ -64,9 +66,11 @@ bool cooling = false; //tracks if the AC is on, off when false
 bool heating = false; //tracks if the heater is on, off when false
 bool hold = true;     //tracks if we are overriding the programmed set points, overriding when true
 bool isDim = false;   //tracks if screen dim
+
 time_t t = now();
 time_t update = now();
-
+time_t touched = now();
+time_t tempRead = now();
 
 void setup(void) {
   Serial.begin(115200); //baud rate to prevent witch craft
@@ -76,7 +80,6 @@ void setup(void) {
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   
   GPS.sendCommand(PGCMD_ANTENNA);
-
   delay(1000);
   
   mySerial.println(PMTK_Q_RELEASE);
@@ -89,9 +92,9 @@ void setup(void) {
   digitalWrite(A0, LOW);
   digitalWrite(A2, HIGH);
 
-  // ANALOG PIN FOR BACKLIGHT
-  pinMode(A5, OUTPUT);
-  digitalWrite(A5, HIGH);
+  // ANALOG PIN FOR BACKLIGHT	
+  pinMode(A5, OUTPUT);	
+  digitalWrite(A5, HIGH);	
 
   //ANALOG PINS FOR LEDs
   pinMode(A8, OUTPUT);
@@ -120,44 +123,46 @@ void setup(void) {
     wkT[i] = EEPROM.read(index+3);
     index+=4;
   }
-  // EEPROM[32] = day, EEPROM[33] = month, EEPROM[34] = year, EEPROM[35] = hour, EEPROM[36] = min
-  myhour -= EEPROM.read(35);
-  myminute -= EEPROM.read(36);
-  myday -= EEPROM.read(32);
-  mymonth -= EEPROM.read(33);
+  
+  // EEPROM[32] = day, EEPROM[33] = month, EEPROM[34] = year, EEPROM[35] = hour, EEPROM[36] = min	
+  myhour -= EEPROM.read(35);	
+  myminute -= EEPROM.read(36);	
+  myday -= EEPROM.read(32);	
+  mymonth -= EEPROM.read(33);	
   myyear -= EEPROM.read(34);
-
+  
   //initial temperature read
-  int rawvoltage= analogRead(outputpin);
-  float millivolts= (rawvoltage/1024.0) * 5000;
-  
-  float fahrenheit= millivolts/10;
-  //Serial.print(fahrenheit);
-  //Serial.println(" degrees Fahrenheit, ");
-  
-  float celsius= (fahrenheit - 32) * (5.0/9.0);
-  
-  //Serial.print (celsius);
-  //Serial.println(" degrees Celsius");
-
-  temper = fahrenheit;
-  //Serial.println(temper);
+  int rawvoltage= analogRead(outputpin);	
+  float millivolts= (rawvoltage/1024.0) * 5000;	
+  	
+  float fahrenheit= millivolts/10;	
+  //Serial.print(fahrenheit);	
+  //Serial.println(" degrees Fahrenheit, ");	
+  	
+  float celsius= (fahrenheit - 32) * (5.0/9.0);	
+  	
+  //Serial.print (celsius);	
+  //Serial.println(" degrees Celsius");	
+   temper = fahrenheit;	
+  //Serial.println(temper);	
   delay(1000);
-
+  
+  	  
   getTime(&myyear, &mymonth, &myday, &myhour, &myminute);
+  
+  Serial.print(GPS.hour, DEC); Serial.print(':');	
+  Serial.print(GPS.minute, DEC); Serial.print('\n');	
+  Serial.print(GPS.day, DEC); Serial.print('/');	
+  Serial.print(GPS.month, DEC); Serial.print("/20");	
+  Serial.println(GPS.year, DEC);	
+  
+  Serial.println(myhour);	
+  Serial.println(myminute);	
+  Serial.println(myday);	
+  Serial.println(mymonth);	
+  Serial.println(myyear);	
 
-  Serial.print(GPS.hour, DEC); Serial.print(':');
-  Serial.print(GPS.minute, DEC); Serial.print('\n');
-  Serial.print(GPS.day, DEC); Serial.print('/');
-  Serial.print(GPS.month, DEC); Serial.print("/20");
-  Serial.println(GPS.year, DEC);
-
-  Serial.println(myhour);
-  Serial.println(myminute);
-  Serial.println(myday);
-  Serial.println(mymonth);
-  Serial.println(myyear);
-
+  
   tft.begin();
  
   if (! ctp.begin(40)) {  // pass in 'sensitivity' coefficient
@@ -181,23 +186,18 @@ void setup(void) {
 }
 
 void loop() {
-
-  //testing in main
-  int rawvoltage= analogRead(outputpin);
-  float millivolts= (rawvoltage/1024.0) * 5000;
-  
-  float fahrenheit= millivolts/10;
-  //Serial.print(fahrenheit);
-  //Serial.println(" degrees Fahrenheit, ");
-  
-  float celsius= (fahrenheit - 32) * (5.0/9.0);
-  
-  //Serial.print (celsius);
-  //Serial.println(" degrees Celsius");
-
-  temper = fahrenheit;
-  //Serial.println(temper);
-  delay(1000);
+  time_t left = now();
+  if(left-tempRead>1){
+    int rawvoltage= analogRead(outputpin);
+    float millivolts= (rawvoltage/1024) * 5000;
+    float fahrenheit= millivolts/10;
+    temper = fahrenheit;
+    Serial.print(fahrenheit);
+    Serial.println(" degrees Fahrenheit, ");
+    
+    float celsius= (temper - 32) * (5.0/9.0);
+    tempRead = now();
+  }
   
   if(view<8){
     time_t nt = now();
@@ -218,12 +218,17 @@ void loop() {
         return;
       }
   } else if (! ctp.touched()){    //Wait for a touch
+    time_t nt = now();
+    if(nt-touched>29){
+      
+    }
     return;
   }
   
   // Retrieve a point
   TS_Point p = ctp.getPoint();
   TS_Point p2 = ctp.getPoint();
+  touched = now();
   
  /*
   // Print out raw data from screen touch controller
@@ -727,6 +732,7 @@ void autoCool(){
   tft.setRotation(3);
   bmpDraw("MSMA_SA.bmp", 0, 0);
   mainViewWriting();
+  digitalWrite(A10, LOW);
   digitalWrite(A12,220); //blue light on
   view = 2;
   mode = 1;
@@ -739,6 +745,7 @@ void autoHeat(){
   bmpDraw("MSMA_SM.bmp", 0, 0);
   mainViewWriting();
   digitalWrite(A10, 220);//red light on
+  digitalWrite(A12, LOW);
   view = 3;
   mode = 1;
 }
@@ -762,6 +769,7 @@ void heatOn(){
   bmpDraw("MSMH_SM.bmp", 0, 0);
   mainViewWriting();
   digitalWrite(A10, 220); //red light on
+  digitalWrite(A12, LOW);
   view = 5;
   mode = 2;
 }
@@ -784,6 +792,7 @@ void coolOn(){
   tft.setRotation(3);
   bmpDraw("MSMC_SA.bmp", 0, 0);
   mainViewWriting();
+  digitalWrite(A10, LOW);
   digitalWrite(A12, 220);//blue light on
   view = 7;
   mode = 3;
@@ -1206,25 +1215,10 @@ void wkTempU(int i){
   t = now();
 }
 
-float getTemp(){
-  int rawvoltage= analogRead(outputpin);
-  float millivolts= (rawvoltage/1024.0) * 5000;
-  float fahrenheit= millivolts/10;
-  Serial.print(fahrenheit);
-  Serial.println(" degrees Fahrenheit, ");
-  
-  float celsius= (fahrenheit - 32) * (5.0/9.0);
-  
-  //Serial.print (celsius);
-  //Serial.println(" degrees Celsius");
-  return fahrenheit;
-}
-
 //from Justin
 void getTime(int *YEAR,int *MONTH, int *DAY, int *HOUR, int *MIN)
 {
   char c = GPS.read();
-
   if (GPS.newNMEAreceived()) 
   {
     if (!GPS.parse(GPS.lastNMEA())) 
@@ -1264,25 +1258,25 @@ void writeEEPROM(){
 
 // EEPROM[32] = day, EEPROM[33] = month, EEPROM[34] = year, EEPROM[35] = hour, EEPROM[36] = min
 void writeTimeEEPROM(){
-  EEPROM.write(32, offDay);
-  EEPROM.write(33, offMonth);
-  EEPROM.write(34, offYear);
+  EEPROM.write(32, offDay);	
+  EEPROM.write(33, offMonth);	
+  EEPROM.write(34, offYear);	  	
   EEPROM.write(35, offHour);
-  EEPROM.write(36, offMin);
-}
+  EEPROM.write(36, offMin);	
+}	
 
-void dimScreen(){
-  for(int i=255; i>0; i--){
-    digitalWrite(A5, i);
-    delay(5);
-  }
-  isDim = true;
-}
+void dimScreen(){	
+  for(int i=255; i>0; i--){	
+    digitalWrite(A5, i);	
+    delay(5);	
+  }	
+  isDim = true;	
+}	
 
-void brightScreen(){
-  for(int i=0; i<255; i++){
-    digitalWrite(A5, i);
-    delay(5);
-  }
-  isDim = false;
+void brightScreen(){	
+  for(int i=0; i<255; i++){	
+    digitalWrite(A5, i);	
+    delay(5);	
+  }	
+  isDim = false;	
 }
