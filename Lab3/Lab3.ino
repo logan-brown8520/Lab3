@@ -56,6 +56,9 @@ bool heating = false; //tracks if the heater is on, off when false
 bool hold = true;     //tracks if we are overriding the programmed set points, overriding when true
 time_t t = now();
 time_t update = now();
+time_t touched = now();
+time_t tempRead = now();
+
 int outputpin = A1; //???
 //GPS variables for Justin
 int yr;
@@ -64,11 +67,6 @@ int da;
 int ho = 0;
 int mi;
 int se;
-
-  /*int fus;
-  int ro;
-  int dah;
-  dovakiin*/
 
 void setup(void) {
   Serial.begin(115200); //baud rate to prevent witch craft
@@ -117,21 +115,20 @@ void setup(void) {
     wkT[i] = EEPROM.read(index+3);
     index+=4;
   }
-
-  int rawvoltage= analogRead(outputpin);
-  float millivolts= (rawvoltage/1024.0) * 5000;
   
-  float fahrenheit= millivolts/10;
-  //Serial.print(fahrenheit);
-  //Serial.println(" degrees Fahrenheit, ");
-  
-  float celsius= (fahrenheit - 32) * (5.0/9.0);
-  
-  //Serial.print (celsius);
-  //Serial.println(" degrees Celsius");
-
-  temper = fahrenheit;
-  //Serial.println(temper);
+  int rawvoltage= analogRead(outputpin);	
+  float millivolts= (rawvoltage/1024.0) * 5000;	
+  	
+  float fahrenheit= millivolts/10;	
+  //Serial.print(fahrenheit);	
+  //Serial.println(" degrees Fahrenheit, ");	
+  	
+  float celsius= (fahrenheit - 32) * (5.0/9.0);	
+  	
+  //Serial.print (celsius);	
+  //Serial.println(" degrees Celsius");	
+   temper = fahrenheit;	
+  //Serial.println(temper);	
   delay(1000);
   
   tft.begin();
@@ -167,24 +164,22 @@ void loop() {
   Serial.print(GPS.day, DEC); Serial.print('/');
   Serial.print(GPS.month, DEC); Serial.print("/20");
   Serial.println(GPS.year, DEC);*/
-
-
-  //testing in main
-  int rawvoltage= analogRead(outputpin);
-  float millivolts= (rawvoltage/1024.0) * 5000;
   
-  float fahrenheit= millivolts/10;
-  //Serial.print(fahrenheit);
-  //Serial.println(" degrees Fahrenheit, ");
+  //get current temp at start of each loop (delay may be needed)
+  //getTemp(); //TEMP SENSOR ISNT WORKING ATM
   
-  float celsius= (fahrenheit - 32) * (5.0/9.0);
-  
-  //Serial.print (celsius);
-  //Serial.println(" degrees Celsius");
-
-  temper = fahrenheit;
-  //Serial.println(temper);
-  delay(1000);
+  time_t left = now();
+  if(left-tempRead>1){
+    int rawvoltage= analogRead(outputpin);
+    float millivolts= (rawvoltage/1024) * 5000;
+    float fahrenheit= millivolts/10;
+    temper = fahrenheit;
+    Serial.print(fahrenheit);
+    Serial.println(" degrees Fahrenheit, ");
+    
+    float celsius= (temper - 32) * (5.0/9.0);
+    tempRead = now();
+  }
   
   if(view<8){
     time_t nt = now();
@@ -205,12 +200,17 @@ void loop() {
         return;
       }
   } else if (! ctp.touched()){    //Wait for a touch
+    time_t nt = now();
+    if(nt-touched>29){
+      
+    }
     return;
   }
   
   // Retrieve a point
   TS_Point p = ctp.getPoint();
   TS_Point p2 = ctp.getPoint();
+  touched = now();
   
  /*
   // Print out raw data from screen touch controller
@@ -714,6 +714,7 @@ void autoCool(){
   tft.setRotation(3);
   bmpDraw("MSMA_SA.bmp", 0, 0);
   mainViewWriting();
+  digitalWrite(A10, LOW);
   digitalWrite(A12,220); //blue light on
   view = 2;
   mode = 1;
@@ -726,6 +727,7 @@ void autoHeat(){
   bmpDraw("MSMA_SM.bmp", 0, 0);
   mainViewWriting();
   digitalWrite(A10, 220);//red light on
+  digitalWrite(A12, LOW);
   view = 3;
   mode = 1;
 }
@@ -749,6 +751,7 @@ void heatOn(){
   bmpDraw("MSMH_SM.bmp", 0, 0);
   mainViewWriting();
   digitalWrite(A10, 220); //red light on
+  digitalWrite(A12, LOW);
   view = 5;
   mode = 2;
 }
@@ -771,6 +774,7 @@ void coolOn(){
   tft.setRotation(3);
   bmpDraw("MSMC_SA.bmp", 0, 0);
   mainViewWriting();
+  digitalWrite(A10, LOW);
   digitalWrite(A12, 220);//blue light on
   view = 7;
   mode = 3;
@@ -1193,20 +1197,6 @@ void wkTempU(int i){
   t = now();
 }
 
-float getTemp(){
-  int rawvoltage= analogRead(outputpin);
-  float millivolts= (rawvoltage/1024.0) * 5000;
-  float fahrenheit= millivolts/10;
-  Serial.print(fahrenheit);
-  Serial.println(" degrees Fahrenheit, ");
-  
-  float celsius= (fahrenheit - 32) * (5.0/9.0);
-  
-  //Serial.print (celsius);
-  //Serial.println(" degrees Celsius");
-  return fahrenheit;
-}
-
 //from Justin
 void getTime(int *YEAR,int *MONTH, int *DAY, int *HOUR, int *MIN, int *SEC)
 {
@@ -1252,10 +1242,9 @@ void writeEEPROM(){
   }
 }
 
-void writeTempEEPROM(){
-  
-}
-
-void readTempEEPROM(){
-  
+void writeTempEEPROM(){	
+  	
+}	
+ void readTempEEPROM(){	
+  	
 }
