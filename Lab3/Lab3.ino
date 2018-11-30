@@ -1,14 +1,19 @@
 // Time - Version: Latest 
 #include <Time.h>
 #include <TimeLib.h>
-
+#include <EEPROM.h>
 #include <Adafruit_FT6206.h>
 #include <Adafruit_GFX.h>    // Core graphics library
 #include "Adafruit_ILI9341.h" // Hardware-specific library
 #include <SPI.h>
 #include <SD.h>
 #include <Wire.h>
-#include <TouchScreen.h>
+#include <Adafruit_GPS.h>
+#include <SoftwareSerial.h>
+
+SoftwareSerial mySerial(8, 7);
+Adafruit_GPS GPS(&mySerial);
+
 
 // TFT display and SD card will share the hardware SPI interface.
 // Hardware SPI pins are specific to the Arduino board type and
@@ -26,9 +31,11 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
 int view = 0;         //keeps track of which of the views we are in, 0-15
 int mode = 0;         //keeps track of whether we are in off(0), auto(1), heating(2), or cooling(3)
+
 int temper = 70;      //the temperature of the house
 int temper2 = 72;     //the hold temperature
 
+//**THESE INITIAL VALUES ARE ONLY USED FOR DEMO PURPOSES. AFTER FIRST WRITE TO EEPROM, FURTHER EXAMPLES WILL READ FROM EEPROM ON STARTUP
 int wkT[]={70, 70, 70, 70, 70, 70, 70, 70};   //temperatures for the week(0-3) and weekend(4-7)
 int wkH[]={5, 11, 5, 11, 5, 11, 5, 11};     //hours for the week(0-3) and weekend(4-7)
 int wkM[]={0, 0, 0, 0, 0, 0, 0, 0};       //minutes for the week(0-3) and weekend(4-7)
@@ -49,10 +56,81 @@ bool heating = false; //tracks if the heater is on, off when false
 bool hold = true;     //tracks if we are overriding the programmed set points, overriding when true
 time_t t = now();
 time_t update = now();
+time_t touched = now();
+time_t tempRead = now();
+
+int outputpin = A1; //???
+//GPS variables for Justin
+int yr;
+int mo = 0;
+int da;
+int ho = 0;
+int mi;
+int se;
 
 void setup(void) {
-  Serial.begin(9600);
+  Serial.begin(115200); //baud rate to prevent witch craft
+  
+  //GPS initialization
+  /*GPS.begin(9600);
+  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   
+  GPS.sendCommand(PGCMD_ANTENNA);
+  delay(1000);
+  
+  mySerial.println(PMTK_Q_RELEASE);*/
 
+  //ANALOG PINS FOR TEMP SENSOR
+  pinMode(A0, OUTPUT);
+  pinMode(A1, INPUT);
+  pinMode(A2, OUTPUT);
+
+  digitalWrite(A0, LOW);
+  digitalWrite(A2, HIGH);
+
+  //ANALOG PINS FOR LEDs
+  pinMode(A8, OUTPUT);
+  pinMode(A9, OUTPUT);
+  pinMode(A10,OUTPUT);
+  pinMode(A11, OUTPUT);
+  pinMode(A12, OUTPUT);
+
+  //need to change this to where appropriate
+  digitalWrite(A8, LOW);
+  digitalWrite(A9, LOW);
+  digitalWrite(A10, LOW);
+  digitalWrite(A11, LOW);
+  digitalWrite(A12, LOW);
+
+  //initialize EEPROM (one time only)
+  //clearEEPROM();
+  //writeEEPROM();
+
+  //initialize variables from EEPROM
+  int index = 0;
+  for(int i = 0; i<8; i++){
+    wkH[i] = EEPROM.read(index);
+    wkM[i] = EEPROM.read(index+1);
+    wkA[i] = EEPROM.read(index+2);
+    wkT[i] = EEPROM.read(index+3);
+    index+=4;
+  }
+  
+  int rawvoltage= analogRead(outputpin);	
+  float millivolts= (rawvoltage/1024.0) * 5000;	
+  	
+  float fahrenheit= millivolts/10;	
+  //Serial.print(fahrenheit);	
+  //Serial.println(" degrees Fahrenheit, ");	
+  	
+  float celsius= (fahrenheit - 32) * (5.0/9.0);	
+  	
+  //Serial.print (celsius);	
+  //Serial.println(" degrees Celsius");	
+   temper = fahrenheit;	
+  //Serial.println(temper);	
+  delay(1000);
+  
   tft.begin();
  
   if (! ctp.begin(40)) {  // pass in 'sensitivity' coefficient
@@ -76,6 +154,32 @@ void setup(void) {
 }
 
 void loop() {
+
+  //for GPS reading (**probably needs moved)
+  /*while(mo == 0 || ho == 0)
+      getTime(&yr, &mo, &da, &ho, &mi, &se);
+  Serial.print(GPS.hour, DEC); Serial.print(':');
+  Serial.print(GPS.minute, DEC); Serial.print(':');
+  Serial.print(GPS.seconds, DEC); Serial.print('\n');
+  Serial.print(GPS.day, DEC); Serial.print('/');
+  Serial.print(GPS.month, DEC); Serial.print("/20");
+  Serial.println(GPS.year, DEC);*/
+  
+  //get current temp at start of each loop (delay may be needed)
+  //getTemp(); //TEMP SENSOR ISNT WORKING ATM
+  
+  time_t left = now();
+  if(left-tempRead>1){
+    int rawvoltage= analogRead(outputpin);
+    float millivolts= (rawvoltage/1024) * 5000;
+    float fahrenheit= millivolts/10;
+    temper = fahrenheit;
+    Serial.print(fahrenheit);
+    Serial.println(" degrees Fahrenheit, ");
+    
+    float celsius= (temper - 32) * (5.0/9.0);
+    tempRead = now();
+  }
   
   if(view<8){
     time_t nt = now();
@@ -96,12 +200,17 @@ void loop() {
         return;
       }
   } else if (! ctp.touched()){    //Wait for a touch
+    time_t nt = now();
+    if(nt-touched>29){
+      
+    }
     return;
   }
   
   // Retrieve a point
   TS_Point p = ctp.getPoint();
   TS_Point p2 = ctp.getPoint();
+  touched = now();
   
  /*
   // Print out raw data from screen touch controller
@@ -215,6 +324,8 @@ void loop() {
           wkTempU(3);
         }
       }
+      clearEEPROM();
+      writeEEPROM();
       delay(300);
       break;
     case 13:
@@ -259,6 +370,8 @@ void loop() {
           wkTempU(7);
         }
       }
+      clearEEPROM();
+      writeEEPROM();
       delay(300);
       break;
     case 14:
@@ -574,9 +687,10 @@ uint32_t read32(File &f) {
 //draw the base page
 void home_page(){
   tft.fillScreen(ILI9341_BLACK);
-  //tft.fillScreen(ILI9341_WHITE);
   tft.setRotation(3);
   bmpDraw("MSOff.bmp", 0, 0);
+  digitalWrite(A10, LOW);
+  digitalWrite(A12, LOW);//turn off lights
   mainViewWriting();
   view = 0;
   mode = 0;
@@ -587,6 +701,8 @@ void autoOff(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("MSMA_SO.bmp", 0, 0);
+  digitalWrite(A10, LOW);
+  digitalWrite(A12, LOW);//turn off lights
   mainViewWriting();
   view = 1;
   mode = 1;
@@ -598,6 +714,8 @@ void autoCool(){
   tft.setRotation(3);
   bmpDraw("MSMA_SA.bmp", 0, 0);
   mainViewWriting();
+  digitalWrite(A10, LOW);
+  digitalWrite(A12,220); //blue light on
   view = 2;
   mode = 1;
 }
@@ -608,6 +726,8 @@ void autoHeat(){
   tft.setRotation(3);
   bmpDraw("MSMA_SM.bmp", 0, 0);
   mainViewWriting();
+  digitalWrite(A10, 220);//red light on
+  digitalWrite(A12, LOW);
   view = 3;
   mode = 1;
 }
@@ -618,6 +738,8 @@ void heatOff(){
   tft.setRotation(3);
   bmpDraw("MSMH_SO.bmp", 0, 0);
   mainViewWriting();
+  digitalWrite(A10, LOW);//turn off lights
+  digitalWrite(A12, LOW);
   view = 4;
   mode = 2;
 }
@@ -628,6 +750,8 @@ void heatOn(){
   tft.setRotation(3);
   bmpDraw("MSMH_SM.bmp", 0, 0);
   mainViewWriting();
+  digitalWrite(A10, 220); //red light on
+  digitalWrite(A12, LOW);
   view = 5;
   mode = 2;
 }
@@ -637,6 +761,8 @@ void coolOff(){
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
   bmpDraw("MSMC_SO.bmp", 0, 0);
+  digitalWrite(A10, LOW);
+  digitalWrite(A12, LOW);//turn off lights
   mainViewWriting();
   view = 6;
   mode = 3;
@@ -648,6 +774,8 @@ void coolOn(){
   tft.setRotation(3);
   bmpDraw("MSMC_SA.bmp", 0, 0);
   mainViewWriting();
+  digitalWrite(A10, LOW);
+  digitalWrite(A12, 220);//blue light on
   view = 7;
   mode = 3;
 }
@@ -1067,4 +1195,56 @@ void wkTempU(int i){
   } 
   myWrite(wkT[i], 210, 230, 250, 260, (20+60*(i%4)), 3, 1, true, false, false, false);
   t = now();
+}
+
+//from Justin
+void getTime(int *YEAR,int *MONTH, int *DAY, int *HOUR, int *MIN, int *SEC)
+{
+  /*char c = GPS.read();
+  if (GPS.newNMEAreceived()) 
+  {
+    if (!GPS.parse(GPS.lastNMEA())) 
+      return;  // we can fail to parse a sentence in which case we should just wait for another
+  }
+    *YEAR = GPS.year;
+    *MONTH = GPS.month;
+    *DAY = GPS.day;
+    *HOUR = GPS.hour;
+    *MIN = GPS.minute;
+    *SEC = GPS.seconds;
+    //Validate data
+    if (*SEC > 60)
+      *MONTH = 0;*/
+}
+
+void clearEEPROM()
+{
+  for (int i = 0 ; i < EEPROM.length() ; i++) {
+    if(EEPROM.read(i) != 0)                     //skip already "empty" addresses
+    {
+      EEPROM.write(i, 0);                       //write 0 to address i
+    }
+  }
+  Serial.println("EEPROM erased");
+}
+
+void writeEEPROM(){
+  int index = 0;
+  for(int i = 0; i<8; i++){
+    EEPROM.write(index, wkH[i]);
+    index++;
+    EEPROM.write(index, wkM[i]);
+    index++;
+    EEPROM.write(index, wkA[i]);
+    index++;
+    EEPROM.write(index, wkT[i]);
+    index++;
+  }
+}
+
+void writeTempEEPROM(){	
+  	
+}	
+ void readTempEEPROM(){	
+  	
 }
