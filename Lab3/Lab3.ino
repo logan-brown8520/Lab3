@@ -41,11 +41,22 @@ int wkH[]={5, 11, 5, 11, 5, 11, 5, 11};     //hours for the week(0-3) and weeken
 int wkM[]={0, 0, 0, 0, 0, 0, 0, 0};       //minutes for the week(0-3) and weekend(4-7)
 bool wkA[] = {true, true, false, false, true, true, false, false};  //AM/PM for the week(0-3) and weekend(4-7), AM is true
 
-int myday = 1;       //the day of the month we are setting the clock to, 1-31
-int mymonth = 1;     //the month we are setting the clock to, 1-12
-int myyear = 2018;    //the year we are setting the clock to
-int myhour = 12;       //the hour we are setting the clock to, 1-12
-int myminute = 0;     //minute we are setting the clock to, 0-59
+//Time variables
+int myday;       //the day of the month we are setting the clock to, 1-31
+int mymonth = 0;     //the month we are setting the clock to, 1-12
+int myyear;    //the year we are setting the clock to
+int myhour = 0;       //the hour we are setting the clock to, 1-12
+int myminute;     //minute we are setting the clock to, 0-59
+
+int outputpin = A1; //set Analog pin
+// Time variable offsets
+//** SET ONE TIME WITH EEPROM
+int offDay = 0;
+int offMonth = 0;
+int offYear = 0;
+int offHour = 0;
+int offMin = 0;
+
 bool morning = true;  //AM when true, PM when false
 bool wkED = false;    //enables programmed set points during the week, disabled when false
 bool wkVer = false;   //when true, allows enabling of programmed set points for week
@@ -54,31 +65,24 @@ bool wkendVer = false;//when true, allows enabling of pragrammed set points for 
 bool cooling = false; //tracks if the AC is on, off when false
 bool heating = false; //tracks if the heater is on, off when false
 bool hold = true;     //tracks if we are overriding the programmed set points, overriding when true
+bool isDim = false;   //tracks if screen dim
+
 time_t t = now();
 time_t update = now();
 time_t touched = now();
 time_t tempRead = now();
 
-int outputpin = A1; //???
-//GPS variables for Justin
-int yr;
-int mo = 0;
-int da;
-int ho = 0;
-int mi;
-int se;
-
 void setup(void) {
   Serial.begin(115200); //baud rate to prevent witch craft
   
   //GPS initialization
-  /*GPS.begin(9600);
+  GPS.begin(9600);
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   
   GPS.sendCommand(PGCMD_ANTENNA);
   delay(1000);
   
-  mySerial.println(PMTK_Q_RELEASE);*/
+  mySerial.println(PMTK_Q_RELEASE);
 
   //ANALOG PINS FOR TEMP SENSOR
   pinMode(A0, OUTPUT);
@@ -87,6 +91,10 @@ void setup(void) {
 
   digitalWrite(A0, LOW);
   digitalWrite(A2, HIGH);
+
+  // ANALOG PIN FOR BACKLIGHT	
+  pinMode(A5, OUTPUT);	
+  digitalWrite(A5, HIGH);	
 
   //ANALOG PINS FOR LEDs
   pinMode(A8, OUTPUT);
@@ -102,6 +110,20 @@ void setup(void) {
   digitalWrite(A11, LOW);
   digitalWrite(A12, LOW);
 
+  getTime(&myyear, &mymonth, &myday, &myhour, &myminute);
+  
+  Serial.print(GPS.hour, DEC); Serial.print(':');	
+  Serial.print(GPS.minute, DEC); Serial.print('\n');	
+  Serial.print(GPS.day, DEC); Serial.print('/');	
+  Serial.print(GPS.month, DEC); Serial.print("/20");	
+  Serial.println(GPS.year, DEC);	
+  
+  Serial.println(myhour);	
+  Serial.println(myminute);	
+  Serial.println(myday);	
+  Serial.println(mymonth);	
+  Serial.println(myyear);	
+
   //initialize EEPROM (one time only)
   //clearEEPROM();
   //writeEEPROM();
@@ -116,6 +138,66 @@ void setup(void) {
     index+=4;
   }
   
+  // EEPROM[32] = day, EEPROM[33] = month, EEPROM[34] = year, EEPROM[35] = hour, EEPROM[36] = min	
+  myminute -= EEPROM.read(36);
+  if(myminute<0){
+    myminute += 60;
+    myhour -= 1;
+  } else if(myminute>59){
+    myminute -= 60;
+    myhour += 1;
+  }
+  
+  myhour -= EEPROM.read(35);
+  if(myhour<0){
+    myhour += 24;
+    myday -= 1;
+  } else if(myhour>23){
+    myhour -= 24;
+    myday += 1;
+  }
+  	
+  mymonth -= EEPROM.read(33);	
+  if(mymonth<1){
+    mymonth += 12;
+    myyear -= 1;
+  } else if(mymonth>12){
+    mymonth -= 12;
+    myyear += 1;
+  }	
+  
+  myday -= EEPROM.read(32);
+  if(myday<1){
+    mymonth -= 1;
+    if((mymonth==4) || (mymonth==6) || (mymonth==9) || (mymonth==11)){
+      myday += 30;
+    } else if(mymonth == 2){
+      myday += 28;
+    } else {
+      myday += 31;
+    }
+  } else if(((mymonth==4) || (mymonth==6) || (mymonth==9) || (mymonth==11)) && (myday>30)){
+    myday -= 30;
+    mymonth += 1;
+  } else if((mymonth == 2) && (myday>28)){
+    myday -= 28;
+    mymonth += 1;
+  } else if(((mymonth == 1) || (mymonth == 3) || (mymonth == 5) || (mymonth == 7) || (mymonth == 8) || (mymonth == 10) || (mymonth == 12)) && (myday>31)){
+    myday -= 31;
+    mymonth += 1;
+  }
+  
+  if(mymonth<1){
+    mymonth += 12;
+    myyear -= 1;
+  } else if(mymonth>12){
+    mymonth -= 12;
+    myyear += 1;
+  }
+  
+  myyear -= EEPROM.read(34);
+  
+  //initial temperature read
   int rawvoltage= analogRead(outputpin);	
   float millivolts= (rawvoltage/1024.0) * 5000;	
   	
@@ -130,6 +212,10 @@ void setup(void) {
    temper = fahrenheit;	
   //Serial.println(temper);	
   delay(1000);
+  
+  	  
+  
+
   
   tft.begin();
  
@@ -150,28 +236,13 @@ void setup(void) {
   mySetTime();
   home_page();
   //writeHoldTemp();
-
 }
 
 void loop() {
-
-  //for GPS reading (**probably needs moved)
-  /*while(mo == 0 || ho == 0)
-      getTime(&yr, &mo, &da, &ho, &mi, &se);
-  Serial.print(GPS.hour, DEC); Serial.print(':');
-  Serial.print(GPS.minute, DEC); Serial.print(':');
-  Serial.print(GPS.seconds, DEC); Serial.print('\n');
-  Serial.print(GPS.day, DEC); Serial.print('/');
-  Serial.print(GPS.month, DEC); Serial.print("/20");
-  Serial.println(GPS.year, DEC);*/
-  
-  //get current temp at start of each loop (delay may be needed)
-  //getTemp(); //TEMP SENSOR ISNT WORKING ATM
-  
   time_t left = now();
   if(left-tempRead>1){
     int rawvoltage= analogRead(outputpin);
-    float millivolts= (rawvoltage/1024) * 5000;
+    float millivolts= (rawvoltage/1024.0) * 5000;
     float fahrenheit= millivolts/10;
     temper = fahrenheit;
     Serial.print(fahrenheit);
@@ -201,8 +272,9 @@ void loop() {
       }
   } else if (! ctp.touched()){    //Wait for a touch
     time_t nt = now();
-    if(nt-touched>29){
-      
+    if((nt-touched>30) && (!isDim)){
+      dimScreen();
+      return;
     }
     return;
   }
@@ -211,6 +283,7 @@ void loop() {
   TS_Point p = ctp.getPoint();
   TS_Point p2 = ctp.getPoint();
   touched = now();
+  brightScreen();
   
  /*
   // Print out raw data from screen touch controller
@@ -377,16 +450,22 @@ void loop() {
     case 14:
       if((60<p.x && p.x<99) && (14<p.y && p.y<39) && mymonth<12){
         mymonth++;
+        offMonth++;
       } else if((60<p.x && p.x<99) && (150<p.y && p.y<175) && mymonth>1){
         mymonth--;
+        offMonth--;
       } else if((140<p.x && p.x<179) && (14<p.y && p.y<39) && myday<31){
         myday++;
+        offDay++;
       } else if((140<p.x && p.x<179) && (150<p.y && p.y<175) && myday>1){
         myday--;
+        offDay--;
       } else if((220<p.x && p.x<259) && (14<p.y && p.y<39) && myyear<9999){
         myyear++;
+        offYear++;
       } else if((220<p.x && p.x<259) && (150<p.y && p.y<175) && myyear>1){
         myyear--;
+        offYear--;
       } else if((219<p.x && p.x<319) && (200<p.y && p.y<239)){
         setTime();
       }
@@ -398,16 +477,21 @@ void loop() {
     case 15:
       if((60<p.x && p.x<99) && (14<p.y && p.y<39) && myhour<12){
         myhour++;
+        offHour++;
       } else if((60<p.x && p.x<99) && (150<p.y && p.y<175) && myhour>1){
         myhour--;
+        offHour--;
       } else if((140<p.x && p.x<179) && (14<p.y && p.y<39) && myminute<59){
         myminute++;
+        offMinute++;
       } else if((140<p.x && p.x<179) && (150<p.y && p.y<175) && myminute>0){
         myminute--;
+        offMinute--;
       } else if((220<p.x && p.x<259) && ((14<p.y && p.y<39) || (150<p.y && p.y<175))){
         morning = !morning;
         delay(250);
       } else if((219<p.x && p.x<319) && (200<p.y && p.y<239)){
+        writeTimeEEPROM();
         mySetTime();
         modeCheck();
       }
@@ -1198,9 +1282,9 @@ void wkTempU(int i){
 }
 
 //from Justin
-void getTime(int *YEAR,int *MONTH, int *DAY, int *HOUR, int *MIN, int *SEC)
+void getTime(int *YEAR,int *MONTH, int *DAY, int *HOUR, int *MIN)
 {
-  /*char c = GPS.read();
+  char c = GPS.read();
   if (GPS.newNMEAreceived()) 
   {
     if (!GPS.parse(GPS.lastNMEA())) 
@@ -1211,10 +1295,6 @@ void getTime(int *YEAR,int *MONTH, int *DAY, int *HOUR, int *MIN, int *SEC)
     *DAY = GPS.day;
     *HOUR = GPS.hour;
     *MIN = GPS.minute;
-    *SEC = GPS.seconds;
-    //Validate data
-    if (*SEC > 60)
-      *MONTH = 0;*/
 }
 
 void clearEEPROM()
@@ -1242,9 +1322,21 @@ void writeEEPROM(){
   }
 }
 
-void writeTempEEPROM(){	
-  	
+// EEPROM[32] = day, EEPROM[33] = month, EEPROM[34] = year, EEPROM[35] = hour, EEPROM[36] = min
+void writeTimeEEPROM(){
+  EEPROM.write(32, offDay);	
+  EEPROM.write(33, offMonth);	
+  EEPROM.write(34, offYear);	  	
+  EEPROM.write(35, offHour);
+  EEPROM.write(36, offMin);	
 }	
- void readTempEEPROM(){	
-  	
+
+void dimScreen(){	
+  digitalWrite(A5, LOW);
+  isDim = true;	
+}	
+
+void brightScreen(){	
+  digitalWrite(A5, HIGH);	
+  isDim = false;	
 }
