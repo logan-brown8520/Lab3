@@ -11,9 +11,9 @@
 #include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
 
-SoftwareSerial mySerial(8, 7);
-Adafruit_GPS GPS(&mySerial);
 
+Adafruit_GPS GPS(&Serial1);
+HardwareSerial mySerial = Serial1;
 
 // TFT display and SD card will share the hardware SPI interface.
 // Hardware SPI pins are specific to the Arduino board type and
@@ -44,7 +44,7 @@ bool wkA[] = {true, true, false, false, true, true, false, false};  //AM/PM for 
 //Time variables
 int myday;       //the day of the month we are setting the clock to, 1-31
 int mymonth = 0;     //the month we are setting the clock to, 1-12
-int myyear;    //the year we are setting the clock to
+int myyear = 0;    //the year we are setting the clock to
 int myhour = 0;       //the hour we are setting the clock to, 1-12
 int myminute; //minute we are setting the clock to, 0-59
 int outputpin = A1;   //set Analog pin
@@ -66,6 +66,9 @@ bool hold = true;     //tracks if we are overriding the programmed set points, o
 bool isDim = false;   //tracks if screen dim
 time_t t = now();
 time_t update = now();
+time_t touched = now();
+time_t tempRead = now();
+
 
 
 void setup(void) {
@@ -73,13 +76,21 @@ void setup(void) {
   
   //GPS initialization
   GPS.begin(9600);
+  
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   
   GPS.sendCommand(PGCMD_ANTENNA);
 
   delay(1000);
-  
+
   mySerial.println(PMTK_Q_RELEASE);
+  do{
+    getTime(&myyear, &mymonth, &myday, &myhour, &myminute);
+  } while(myyear != 18 && mymonth != 12); //this needs some sort of more robust checking
+  
+
+  myhour-=6;
+  myyear+=2000; 
 
   //ANALOG PINS FOR TEMP SENSOR
   pinMode(A0, OUTPUT);
@@ -97,19 +108,37 @@ void setup(void) {
   pinMode(A8, OUTPUT);
   pinMode(A9, OUTPUT);
   pinMode(A10,OUTPUT);
-  pinMode(A11, OUTPUT);
-  pinMode(A12, OUTPUT);
+  pinMode(13, OUTPUT);
+
 
   //need to change this to where appropriate
   digitalWrite(A8, LOW);
   digitalWrite(A9, LOW);
   digitalWrite(A10, LOW);
-  digitalWrite(A11, LOW);
-  digitalWrite(A12, LOW);
+  digitalWrite(13, LOW);
+
 
   //initialize EEPROM (one time only)
-  //clearEEPROM();
-  //writeEEPROM();
+  /*clearEEPROM();
+  writeEEPROM();
+  signed int start = 0;
+  EEPROM.put(32,start);
+  EEPROM.put(34, start);
+  EEPROM.put(36, start); //account for year offset
+  EEPROM.put(38, start);
+  EEPROM.put(40, start);*/
+
+  signed int val;
+  EEPROM.get(32, val);
+  Serial.println(val);
+  EEPROM.get(34, val);
+  Serial.println(val);
+  EEPROM.get(36, val);
+  Serial.println(val);
+  EEPROM.get(38, val);
+  Serial.println(val);
+  EEPROM.get(40, val);
+  Serial.println(val);
 
   //initialize variables from EEPROM
   int index = 0;
@@ -121,42 +150,86 @@ void setup(void) {
     index+=4;
   }
   // EEPROM[32] = day, EEPROM[33] = month, EEPROM[34] = year, EEPROM[35] = hour, EEPROM[36] = min
-  myhour -= EEPROM.read(35);
-  myminute -= EEPROM.read(36);
-  myday -= EEPROM.read(32);
-  mymonth -= EEPROM.read(33);
-  myyear -= EEPROM.read(34);
+  signed int value;
+  EEPROM.get(40, value);  
+  myminute -= value;
+  if(myminute<0){
+    myminute += 60;
+    myhour -= 1;
+  } else if(myminute>59){
+    myminute -= 60;
+    myhour += 1;
+  }
+
+  EEPROM.get(38, value);
+  myhour -= value;
+  if(myhour<0){
+    myhour += 24;
+    myday -= 1;
+  } else if(myhour>23){
+    myhour -= 24;
+    myday += 1;
+  }
+
+  EEPROM.get(34, value);
+  mymonth -= value; 
+  if(mymonth<1){
+    mymonth += 12;
+    myyear -= 1;
+  } else if(mymonth>12){
+    mymonth -= 12;
+    myyear += 1;
+  } 
+
+  EEPROM.get(32, value); 
+  myday -= value;
+  if(myday<1){
+    mymonth -= 1;
+    if((mymonth==4) || (mymonth==6) || (mymonth==9) || (mymonth==11)){
+      myday += 30;
+    } else if(mymonth == 2){
+      myday += 28;
+    } else {
+      myday += 31;
+    }
+  } else if(((mymonth==4) || (mymonth==6) || (mymonth==9) || (mymonth==11)) && (myday>30)){
+    myday -= 30;
+    mymonth += 1;
+  } else if((mymonth == 2) && (myday>28)){
+    myday -= 28;
+    mymonth += 1;
+  } else if(((mymonth == 1) || (mymonth == 3) || (mymonth == 5) || (mymonth == 7) || (mymonth == 8) || (mymonth == 10) || (mymonth == 12)) && (myday>31)){
+    myday -= 31;
+    mymonth += 1;
+  }
+  
+  if(mymonth<1){
+    mymonth += 12;
+    myyear -= 1;
+  } else if(mymonth>12){
+    mymonth -= 12;
+    myyear += 1;
+  }
+
+  EEPROM.get(36, value);
+  myyear -= value;
+  //myyear++; //comment out on resetting EEPROM
+  if(myhour>12){
+    //morning = false;
+    //myhour-=12;
+  }
 
   //initial temperature read
   int rawvoltage= analogRead(outputpin);
   float millivolts= (rawvoltage/1024.0) * 5000;
   
   float fahrenheit= millivolts/10;
-  //Serial.print(fahrenheit);
-  //Serial.println(" degrees Fahrenheit, ");
   
   float celsius= (fahrenheit - 32) * (5.0/9.0);
   
-  //Serial.print (celsius);
-  //Serial.println(" degrees Celsius");
-
   temper = fahrenheit;
-  //Serial.println(temper);
   delay(1000);
-
-  getTime(&myyear, &mymonth, &myday, &myhour, &myminute);
-
-  Serial.print(GPS.hour, DEC); Serial.print(':');
-  Serial.print(GPS.minute, DEC); Serial.print('\n');
-  Serial.print(GPS.day, DEC); Serial.print('/');
-  Serial.print(GPS.month, DEC); Serial.print("/20");
-  Serial.println(GPS.year, DEC);
-
-  Serial.println(myhour);
-  Serial.println(myminute);
-  Serial.println(myday);
-  Serial.println(mymonth);
-  Serial.println(myyear);
+  
 
   tft.begin();
  
@@ -165,39 +238,29 @@ void setup(void) {
     while (1);
   }
   
-  Serial.println("Capacitive touchscreen started");
   
   yield();
 
-  Serial.print("Initializing SD card...");
   if (!SD.begin(SD_CS)) {
     Serial.println("failed!");
   }
-  Serial.println("OK!");
   mySetTime();
   home_page();
-  //writeHoldTemp();
-
 }
 
 void loop() {
-
-  //testing in main
-  int rawvoltage= analogRead(outputpin);
-  float millivolts= (rawvoltage/1024.0) * 5000;
-  
-  float fahrenheit= millivolts/10;
-  //Serial.print(fahrenheit);
-  //Serial.println(" degrees Fahrenheit, ");
-  
-  float celsius= (fahrenheit - 32) * (5.0/9.0);
-  
-  //Serial.print (celsius);
-  //Serial.println(" degrees Celsius");
-
-  temper = fahrenheit;
-  //Serial.println(temper);
-  delay(1000);
+  time_t left = now();
+  if(left-tempRead>1){
+    int rawvoltage= analogRead(outputpin);
+    float millivolts= (rawvoltage/1024.0) * 5000;
+    float fahrenheit= millivolts/10;
+    temper = fahrenheit;
+    Serial.print(fahrenheit);
+    Serial.println(" degrees Fahrenheit, ");
+    
+    float celsius= (temper - 32) * (5.0/9.0);
+    tempRead = now();
+  }
   
   if(view<8){
     time_t nt = now();
@@ -218,28 +281,25 @@ void loop() {
         return;
       }
   } else if (! ctp.touched()){    //Wait for a touch
+    time_t nt = now();
+    if((nt-touched>30) && (!isDim)){
+      dimScreen();
+      return;
+    }
     return;
   }
   
   // Retrieve a point
   TS_Point p = ctp.getPoint();
   TS_Point p2 = ctp.getPoint();
+  touched = now();
+  brightScreen();
   
- /*
-  // Print out raw data from screen touch controller
-  Serial.print("X = "); Serial.print(p.x);
-  Serial.print("\tY = "); Serial.print(p.y);
-  Serial.print(" -> ");
- */
 
   // flip it around to match the screen.
   p.x = map(p2.y, 0, 320, 0, 320);
   p.y = map(p2.x, 0, 240, 240, 0);
 
-  // Print out the remapped (rotated) coordinates
-  Serial.print("("); Serial.print(p.x);
-  Serial.print(", "); Serial.print(p.y);
-  Serial.println(")");
   
   //assign instructions based on what locations was touched and what view we are in
   switch(view) {
@@ -387,19 +447,25 @@ void loop() {
       writeEEPROM();
       delay(300);
       break;
-    case 14:
+   case 14:
       if((60<p.x && p.x<99) && (14<p.y && p.y<39) && mymonth<12){
         mymonth++;
+        offMonth++;
       } else if((60<p.x && p.x<99) && (150<p.y && p.y<175) && mymonth>1){
         mymonth--;
+        offMonth--;
       } else if((140<p.x && p.x<179) && (14<p.y && p.y<39) && myday<31){
         myday++;
+        offDay++;
       } else if((140<p.x && p.x<179) && (150<p.y && p.y<175) && myday>1){
         myday--;
+        offDay--;
       } else if((220<p.x && p.x<259) && (14<p.y && p.y<39) && myyear<9999){
         myyear++;
+        offYear++;
       } else if((220<p.x && p.x<259) && (150<p.y && p.y<175) && myyear>1){
         myyear--;
+        offYear--;
       } else if((219<p.x && p.x<319) && (200<p.y && p.y<239)){
         setTime();
       }
@@ -411,16 +477,27 @@ void loop() {
     case 15:
       if((60<p.x && p.x<99) && (14<p.y && p.y<39) && myhour<12){
         myhour++;
+        offHour++;
       } else if((60<p.x && p.x<99) && (150<p.y && p.y<175) && myhour>1){
         myhour--;
+        offHour--;
       } else if((140<p.x && p.x<179) && (14<p.y && p.y<39) && myminute<59){
         myminute++;
+        offMin++;
       } else if((140<p.x && p.x<179) && (150<p.y && p.y<175) && myminute>0){
         myminute--;
+        offMin--;
       } else if((220<p.x && p.x<259) && ((14<p.y && p.y<39) || (150<p.y && p.y<175))){
+        if(morning){
+          offHour += 12;
+        }
+        else{
+          offHour-=12;
+        }
         morning = !morning;
         delay(250);
       } else if((219<p.x && p.x<319) && (200<p.y && p.y<239)){
+        writeTimeEEPROM();
         mySetTime();
         modeCheck();
       }
@@ -703,7 +780,7 @@ void home_page(){
   tft.setRotation(3);
   bmpDraw("MSOff.bmp", 0, 0);
   digitalWrite(A10, LOW);
-  digitalWrite(A12, LOW);//turn off lights
+  digitalWrite(13, LOW);//turn off lights
   mainViewWriting();
   view = 0;
   mode = 0;
@@ -715,7 +792,7 @@ void autoOff(){
   tft.setRotation(3);
   bmpDraw("MSMA_SO.bmp", 0, 0);
   digitalWrite(A10, LOW);
-  digitalWrite(A12, LOW);//turn off lights
+  digitalWrite(13, LOW);//turn off lights
   mainViewWriting();
   view = 1;
   mode = 1;
@@ -727,7 +804,8 @@ void autoCool(){
   tft.setRotation(3);
   bmpDraw("MSMA_SA.bmp", 0, 0);
   mainViewWriting();
-  digitalWrite(A12,220); //blue light on
+  digitalWrite(A10, LOW);
+  digitalWrite(13,10); //blue light on
   view = 2;
   mode = 1;
 }
@@ -738,7 +816,8 @@ void autoHeat(){
   tft.setRotation(3);
   bmpDraw("MSMA_SM.bmp", 0, 0);
   mainViewWriting();
-  digitalWrite(A10, 220);//red light on
+  digitalWrite(A10, HIGH);//red light on
+  digitalWrite(13, LOW);
   view = 3;
   mode = 1;
 }
@@ -750,7 +829,7 @@ void heatOff(){
   bmpDraw("MSMH_SO.bmp", 0, 0);
   mainViewWriting();
   digitalWrite(A10, LOW);//turn off lights
-  digitalWrite(A12, LOW);
+  digitalWrite(13, LOW);
   view = 4;
   mode = 2;
 }
@@ -761,7 +840,8 @@ void heatOn(){
   tft.setRotation(3);
   bmpDraw("MSMH_SM.bmp", 0, 0);
   mainViewWriting();
-  digitalWrite(A10, 220); //red light on
+  digitalWrite(A10, HIGH); //red light on
+  digitalWrite(13, LOW);
   view = 5;
   mode = 2;
 }
@@ -772,7 +852,7 @@ void coolOff(){
   tft.setRotation(3);
   bmpDraw("MSMC_SO.bmp", 0, 0);
   digitalWrite(A10, LOW);
-  digitalWrite(A12, LOW);//turn off lights
+  digitalWrite(13, LOW);//turn off lights
   mainViewWriting();
   view = 6;
   mode = 3;
@@ -784,14 +864,15 @@ void coolOn(){
   tft.setRotation(3);
   bmpDraw("MSMC_SA.bmp", 0, 0);
   mainViewWriting();
-  digitalWrite(A12, 220);//blue light on
+  digitalWrite(A10, LOW);
+  digitalWrite(13, 10);//blue light on
   view = 7;
   mode = 3;
 }
 
 //more code condensing
 void mainViewWriting(){
-  myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false, false);
+   myWrite(temper, 30, 70, 110, 130, 44, 7, 2, true, false, false, false);
   myWrite(hourFormat12(), 34, 57, 75, 0, 165, 4, 0, false, true, false, false);
   myWrite(minute(), 90, 113, 0, 0, 165, 4, 0, false, false, false, false);
   myWrite(weekday(), 5, 0, 0, 0, 165, 4, 0, false, false, true, false);
@@ -978,6 +1059,7 @@ void myWrite(int value, int x1, int x2, int x3, int x4, int y, int size1, int si
     tft.drawChar(x3, y, byte(b[2]), ILI9341_BLACK, ILI9341_WHITE, size1);
     tft.drawChar(x4, y, byte(b[3]), ILI9341_BLACK, ILI9341_WHITE, size1);
   } else {
+    //determines day of the week to be printed
     switch(value) {
       case 1:
         tft.drawChar(x1, y, 83, ILI9341_BLACK, ILI9341_WHITE, size1);
@@ -1083,16 +1165,6 @@ void dateWrite(){
   myWrite(myday, 130, 160, 0, 0, 80, 5, 0, false, false, false, false);
   myWrite(myyear, 200, 230, 260, 290, 80, 5, 0, false, false, false, true);
 }
-
-//THIS ONE WORKS
-/*void writeTemp(int temperature, int x1, int x2, int x3, int x4, int y, int size1, int size2){
-  char a[2];
-  String(temperature).toCharArray(a,3);
-  tft.drawChar(x1, y, byte(a[0]), ILI9341_BLACK, ILI9341_WHITE, size1);
-  tft.drawChar(x2, y, byte(a[1]), ILI9341_BLACK, ILI9341_WHITE, size1);
-  tft.drawChar(x3, y, 79, ILI9341_BLACK, ILI9341_WHITE, size2);
-  tft.drawChar(x4, y, 70, ILI9341_BLACK, ILI9341_WHITE, size1);
-}*/
 
 void mySetTime(){
   if(!morning){
@@ -1210,13 +1282,9 @@ float getTemp(){
   int rawvoltage= analogRead(outputpin);
   float millivolts= (rawvoltage/1024.0) * 5000;
   float fahrenheit= millivolts/10;
-  Serial.print(fahrenheit);
-  Serial.println(" degrees Fahrenheit, ");
   
   float celsius= (fahrenheit - 32) * (5.0/9.0);
   
-  //Serial.print (celsius);
-  //Serial.println(" degrees Celsius");
   return fahrenheit;
 }
 
@@ -1235,6 +1303,11 @@ void getTime(int *YEAR,int *MONTH, int *DAY, int *HOUR, int *MIN)
     *DAY = GPS.day;
     *HOUR = GPS.hour;
     *MIN = GPS.minute;
+    int* SEC = GPS.seconds;
+
+    //Validate data
+    if (*SEC > 60)
+      *MONTH = 0;
 }
 
 void clearEEPROM()
@@ -1245,7 +1318,6 @@ void clearEEPROM()
       EEPROM.write(i, 0);                       //write 0 to address i
     }
   }
-  Serial.println("EEPROM erased");
 }
 
 void writeEEPROM(){
@@ -1262,27 +1334,22 @@ void writeEEPROM(){
   }
 }
 
-// EEPROM[32] = day, EEPROM[33] = month, EEPROM[34] = year, EEPROM[35] = hour, EEPROM[36] = min
+// EEPROM[32] = day, EEPROM[34] = month, EEPROM[36] = year, EEPROM[38] = hour, EEPROM[40] = min
 void writeTimeEEPROM(){
-  EEPROM.write(32, offDay);
-  EEPROM.write(33, offMonth);
-  EEPROM.write(34, offYear);
-  EEPROM.write(35, offHour);
-  EEPROM.write(36, offMin);
+  EEPROM.put(32, offDay);
+  EEPROM.put(34, offMonth);
+  EEPROM.put(36, offYear);
+  EEPROM.put(38, offHour);
+  EEPROM.put(40, offMin);
+  //EEPROM.write(41, morning);
 }
 
-void dimScreen(){
-  for(int i=255; i>0; i--){
-    digitalWrite(A5, i);
-    delay(5);
-  }
-  isDim = true;
-}
+void dimScreen(){  
+  digitalWrite(A5, LOW);
+  isDim = true; 
+} 
 
-void brightScreen(){
-  for(int i=0; i<255; i++){
-    digitalWrite(A5, i);
-    delay(5);
-  }
-  isDim = false;
+void brightScreen(){  
+  digitalWrite(A5, HIGH); 
+  isDim = false;  
 }
