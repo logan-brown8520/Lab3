@@ -1323,13 +1323,13 @@ void writeEEPROM(){
 }
 
 // EEPROM[32] = day, EEPROM[34] = month, EEPROM[36] = year, EEPROM[38] = hour, EEPROM[40] = min
+// inverse is stored to match logic to adjust current time when reading from EEPROM
 void writeTimeEEPROM(){
   EEPROM.put(32, -offDay);
   EEPROM.put(34, -offMonth);
   EEPROM.put(36, -offYear);
   EEPROM.put(38, -offHour);
   EEPROM.put(40, -offMin);
-  //EEPROM.write(41, morning);
 }
 
 void dimScreen(){  
